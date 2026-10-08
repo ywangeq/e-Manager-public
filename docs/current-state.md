@@ -45,3 +45,7 @@ Group delivery review requires a governed reviewer Skill; select its stable ID e
 Skill 归档导入还需要 PATH 中有 `python3`、`unzip` 和 `tar`；Python Harness 需另行准备对应执行依赖。
 
 Public release-to-beta mappings and immutable attachment digests are recorded in [Release versions](release-versions.md). Development updates do not automatically change an already published package.
+
+## Model credentials
+
+The distribution does not include a model API key or shared inference quota. Users must supply their own model service URL, model name and API key before running AI tasks. Center startup and local login do not require a model key. Configure credentials locally; never commit them or paste them into public Issues. Usage is billed by the selected model service.

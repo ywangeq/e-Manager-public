@@ -39,3 +39,7 @@ Recorded public release 1.0 / v1.0.0 as Group Studio 3.0.0-beta.32, verified aga
 ## 2026-10-08 · GITHUB-PUBLIC-001 · personal contact removal
 
 Removed the personal messaging contact from public README, Release notes and Center ZIP. Email and public GitHub contact remain; copyright attribution and official license unchanged. Recreated the public snapshot/tag under the previously authorized privacy-cleanup scope, preserving development history only in local private backups. Group Studio remains 3.0.0-beta.32; Desktop software is unchanged. Verified tracked source/archive contact scans, credentials scan, Release text readback and attachment digests. Legacy GitHub PR/cache copies remain a platform limitation. Original GitLab checkout, lease and services unchanged.
+
+## 2026-10-08 · GITHUB-PUBLIC-001 · model key requirement and re-audit
+
+Clarified in README, local installation docs and Release notes that model API keys and usage quota are user-supplied; starting Center/login alone does not require a key. Audited current public branch/tag, reachable legacy PR revisions and Release source/package artifacts using credential signatures and private known-secret comparison without outputting values. Documentation only, no supplied keys or runtime/permission changes. Original GitLab checkout, leases and services unchanged. Record final scan counts and any limitations in the private audit receipt; scanning does not certify unknown credentials beyond detectable signatures/known-secret matches.

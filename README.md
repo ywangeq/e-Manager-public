@@ -22,6 +22,8 @@ pnpm start
 
 打开 `http://127.0.0.1:14878`，账号 `admin@localhost`，首次密码见本地 `data/local/first-login.txt`。从源码运行时，在启动前执行 `pnpm build`。先启动 Center，再打开 Group Studio；桌面包不自动启动 Center。
 
+**模型 API Key 由用户自行准备。** 仓库和安装包不附带模型密钥，也不提供共享模型额度。启动 Center 后，使用 AI 功能前需配置自己的模型服务地址、模型名称与 API Key；模型调用费用由所用服务商收取。仅启动界面和本地登录不需要模型密钥。请在本机配置凭证，不要提交到 Git 或上传到 Issue。
+
 用户可以配置模型、制作员工和 Skill，或修改源码接入自己的系统。企业认证、组织权限、专有 API 和新增渠道可能需要开发适配，详见 [二次开发说明](docs/secondary-development.md) 和 [本地安装说明](docs/current-state.md)。
 
 桌面包尚未签名或公证，Windows 包未提供。已验证本地登录、基础权限与空目录，完整模型执行和企业接入需按自己的环境联调。

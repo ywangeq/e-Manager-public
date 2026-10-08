@@ -12,7 +12,7 @@
 
 | 文件 | SHA-256 |
 | --- | --- |
-| `e-manager-center-1.0.0.zip` | `c5fdb34f431ef87c0bc8744364d4901604818e9f0506bd58aa5f2a6af0c6d741` |
+| `e-manager-center-1.0.0.zip` | `e82e4d2258764cde072df48641bab5eeb5d4d6a5064206534eecfe2077020c61` |
 | `e-manager-group-studio-3-1.0.0-macos-arm64.zip` | `e214bb3694a99922d2b80567eb85473d5b526a6e204a604e1d581d736891e04b` |
 | `e-manager-example-text-summary-1.0.0.zip` | `f25aa4987947ef75222c22de5d2cdf77ef119a05adde1ed0f03b0c6fbe9359d3` |
 
