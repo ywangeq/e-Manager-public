@@ -4,7 +4,7 @@
 
 | 公开发行 | Group Studio 内部版本 | 发布日期 | 对应源码快照 |
 | --- | --- | --- | --- |
-| [1.0 / v1.0.0](https://github.com/ywangeq/e-Manager-public/releases/tag/v1.0.0) | `3.0.0-beta.32` | 2026-10-08 | `v1.0.0` 标签对应的隐私修订快照 |
+| [1.0 / v1.0.0](https://github.com/ywangeq/e-Manager-public/releases/tag/v1.0.0) | `3.0.0-beta.32` | 2026-10-08 | `35de34b3a704f9cb4efbff691425450fb6ad471c` |
 
 以上为独立公开发行快照，不跟随 GitLab 开发分支自动更新。2026-10-08 的隐私修订保留桌面版本 `3.0.0-beta.32`，更新了公开署名、源码历史及发行附件；以下校验值对应修订后的当前附件。
 
