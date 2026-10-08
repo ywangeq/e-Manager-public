@@ -1,0 +1,51 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "DataFlow resource reference interaction overlay",
+    "version": "2026-08-13"
+  },
+  "paths": {},
+  "components": {
+    "parameters": {
+      "ProjectID": {
+        "name": "projectID",
+        "in": "path",
+        "required": true,
+        "description": "Agent-managed project reference. Resolve it through authorized project read operations and present the verified project name to the user.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1,
+          "title": "项目",
+          "x-agent-managed": true
+        }
+      },
+      "WorkspaceID": {
+        "name": "workspaceID",
+        "in": "path",
+        "required": true,
+        "description": "Agent-managed project-scoped workspace reference. Resolve it through authorized workspace read operations and present the verified workspace name to the user.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1,
+          "title": "工作空间",
+          "x-agent-managed": true
+        }
+      },
+      "ExperimentID": {
+        "name": "experimentID",
+        "in": "path",
+        "required": true,
+        "description": "Agent-managed workspace-scoped experiment reference. Resolve it through authorized experiment read operations and present the verified experiment name to the user.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1,
+          "title": "实验",
+          "x-agent-managed": true
+        }
+      }
+    }
+  }
+}

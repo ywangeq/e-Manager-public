@@ -1,0 +1,220 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HR Training Assessment Governed API",
+    "version": "2026.08.17"
+  },
+  "paths": {
+    "/api/v1/assessments/active": {
+      "get": {
+        "operationId": "assessments.active.list",
+        "summary": "读取当前用户可参加的培训考核活动",
+        "tags": ["training_assessment"],
+        "x-digital-workforce": {
+          "action": "read_assessment",
+          "capabilities": ["training_assessment"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["assessments:read"],
+          "writebackBoundary": "none",
+          "responseSelection": {
+            "sourcePaths": ["items", "assessments", "activeAssessments", ""],
+            "minItems": 2,
+            "maxItems": 8,
+            "title": "选择培训考核活动",
+            "description": "当前有 {count} 个可参加的培训考核，请选择一个继续。",
+            "fieldId": "selectedAssessment",
+            "fieldLabel": "培训考核活动",
+            "labelPaths": ["displayName", "title", "name", "assessmentName"],
+            "valueTemplate": {
+              "assessmentRef": ["assessmentRef", "assessmentId", "assessment_id", "id"]
+            },
+            "optionalValueTemplate": {
+              "topicRef": ["topicRef", "topicId", "topic_id", "topic.ref", "topic.id"],
+              "topicTitle": ["topicTitle", "topic.title", "topicName"]
+            },
+            "evidenceTemplate": {
+              "assessmentTitle": ["displayName", "title", "name", "assessmentName"],
+              "departmentScope": ["departmentScope", "department_scope"],
+              "courseVideoUrl": ["courseVideoUrl"]
+            },
+            "presentationLinkLabel": "培训视频",
+            "presentationLinkTemplate": {
+              "courseVideoUrl": ["courseVideoUrl"]
+            },
+            "managedContextFields": {
+              "departmentScope": {
+                "aliases": [
+                  "department",
+                  "departmentRef",
+                  "departmentOrBu",
+                  "selectedDepartmentBu",
+                  "businessUnit",
+                  "businessUnitRef",
+                  "bu",
+                  "BU",
+                  "所属部门",
+                  "所属部门/BU",
+                  "部门/BU",
+                  "适用范围"
+                ]
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "当前用户可参加活动的安全投影" } }
+      }
+    },
+    "/api/v1/topics/{topicRef}/assessment-context": {
+      "get": {
+        "operationId": "assessment.context.get",
+        "summary": "读取已选活动的冻结资料与考核准则投影",
+        "tags": ["training_assessment"],
+        "parameters": [
+          {
+            "name": "topicRef",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 160, "x-agent-managed": true }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "read_assessment_context",
+          "capabilities": ["training_assessment"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["assessment_context:read"],
+          "writebackBoundary": "none",
+          "resultPresentation": {
+            "links": "none"
+          }
+        },
+        "responses": { "200": { "description": "当前活动的最小必要上下文" } }
+      }
+    },
+    "/api/v1/exam-sessions": {
+      "post": {
+        "operationId": "exam_sessions.create",
+        "summary": "为当前认证员工创建或幂等复用本轮考核会话",
+        "tags": ["training_session"],
+        "x-digital-workforce": {
+          "action": "create_exam_session",
+          "capabilities": ["training_session"],
+          "risk": "controlled_write",
+          "confirmationPolicy": "explicit_per_call",
+          "scope": ["exam_sessions:create"],
+          "writebackBoundary": "仅创建当前认证员工、当前活动的一次考核会话；用户身份由 delegated JWT 派生"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assessmentRef": { "type": "string", "minLength": 1, "maxLength": 160, "x-agent-managed": true },
+                  "departmentRef": { "type": "string", "minLength": 1, "maxLength": 160, "x-agent-managed": true },
+                  "idempotencyKey": { "type": "string", "minLength": 16, "maxLength": 180, "x-agent-managed": true }
+                },
+                "required": ["assessmentRef", "idempotencyKey"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "已创建或复用的本人考核会话安全引用" } }
+      }
+    },
+    "/api/v1/exam-sessions/{sessionRef}": {
+      "get": {
+        "operationId": "exam_sessions.get",
+        "summary": "按本人会话引用读取考核状态",
+        "tags": ["training_session"],
+        "parameters": [
+          {
+            "name": "sessionRef",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 160, "x-agent-managed": true }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "read_exam_session",
+          "capabilities": ["training_session"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["exam_sessions:read"],
+          "writebackBoundary": "none"
+        },
+        "responses": { "200": { "description": "当前认证员工的会话状态安全投影" } }
+      }
+    },
+    "/api/v1/exam-sessions/{sessionRef}/submit": {
+      "post": {
+        "operationId": "exam_sessions.submit",
+        "summary": "提交当前员工本轮交卷摘要",
+        "tags": ["training_submission"],
+        "parameters": [
+          {
+            "name": "sessionRef",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 160, "x-agent-managed": true }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "submit_assessment",
+          "capabilities": ["training_submission"],
+          "risk": "high_impact_write",
+          "confirmationPolicy": "explicit_per_call",
+          "scope": ["exam_sessions:submit"],
+          "writebackBoundary": "仅新增当前员工、当前会话的一次交卷；不得写正式 HR 评分或人员结论"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "minutesReceiptRef": { "type": "string", "minLength": 1, "maxLength": 180, "x-agent-managed": true },
+                  "recordingSummary": { "type": "string", "minLength": 1, "maxLength": 12000 },
+                  "qaSummary": { "type": "string", "maxLength": 12000 },
+                  "learnerFeedback": { "type": "string", "maxLength": 12000 },
+                  "idempotencyKey": { "type": "string", "minLength": 16, "maxLength": 180, "x-agent-managed": true }
+                },
+                "required": ["minutesReceiptRef", "recordingSummary", "idempotencyKey"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "本次交卷回执安全投影" } }
+      }
+    },
+    "/api/v1/exam-sessions/{sessionRef}/submission": {
+      "get": {
+        "operationId": "exam_submissions.get",
+        "summary": "按本人会话回读最近一次交卷状态",
+        "tags": ["training_submission"],
+        "parameters": [
+          {
+            "name": "sessionRef",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 160, "x-agent-managed": true }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "read_submission",
+          "capabilities": ["training_submission"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["exam_submissions:read"],
+          "writebackBoundary": "none"
+        },
+        "responses": { "200": { "description": "当前认证员工本次交卷状态安全投影" } }
+      }
+    }
+  }
+}

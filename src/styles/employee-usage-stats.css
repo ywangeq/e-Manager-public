@@ -1,0 +1,432 @@
+.selected-employee-cockpit-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.selected-employee-cockpit-grid > .entity-list {
+  container-type: inline-size;
+  margin-top: 0;
+  min-width: 0;
+}
+
+.employee-usage-stats-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--detail-bg);
+}
+
+.employee-usage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.employee-usage-head span,
+.employee-usage-metrics span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.employee-usage-head span {
+  flex: 1 1 120px;
+}
+
+.employee-usage-head strong {
+  font-size: 0.98rem;
+  white-space: nowrap;
+}
+
+.employee-usage-head small,
+.employee-usage-metrics small {
+  color: var(--description);
+  font-size: 0.76rem;
+}
+
+.employee-usage-head b {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 4px 8px;
+  border: 1px solid rgba(110, 168, 255, 0.28);
+  border-radius: 999px;
+  color: var(--blue);
+  background: rgba(110, 168, 255, 0.08);
+  font-size: 0.73rem;
+}
+
+.employee-runtime-health {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--control-bg);
+}
+
+.employee-runtime-health.is-offline {
+  border-color: rgba(234, 67, 53, 0.24);
+  background: rgba(234, 67, 53, 0.04);
+}
+
+.employee-runtime-health.is-degraded {
+  border-color: rgba(255, 209, 102, 0.28);
+  background: rgba(255, 209, 102, 0.05);
+}
+
+.employee-runtime-health.is-online {
+  border-color: rgba(85, 226, 168, 0.22);
+  background: rgba(85, 226, 168, 0.04);
+}
+
+.employee-runtime-health-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.employee-runtime-health-head span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.employee-runtime-health-head strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.employee-runtime-health-head small,
+.employee-runtime-health-item small {
+  color: var(--description);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.employee-runtime-health-list {
+  display: grid;
+  gap: 6px;
+}
+
+.employee-runtime-health-item {
+  display: grid;
+  grid-template-columns: minmax(64px, 0.42fr) minmax(78px, 0.58fr);
+  gap: 2px 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.employee-runtime-health-item strong,
+.employee-runtime-health-item b {
+  min-width: 0;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.employee-runtime-health-item strong {
+  color: var(--muted);
+}
+
+.employee-runtime-health-item b {
+  color: var(--text);
+}
+
+.employee-runtime-health-item small {
+  grid-column: 1 / -1;
+}
+
+.employee-runtime-health-item.is-good b {
+  color: var(--green);
+}
+
+.employee-runtime-health-item.is-warn b {
+  color: var(--amber);
+}
+
+.employee-runtime-health-item.is-bad b {
+  color: var(--red);
+}
+
+.employee-runtime-health-item.is-info b {
+  color: var(--blue);
+}
+
+.employee-usage-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  text-align: center;
+}
+
+.employee-usage-metrics span {
+  justify-items: center;
+  min-height: 58px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--control-bg);
+}
+
+.employee-usage-metrics strong {
+  color: var(--text);
+  font-size: 1.18rem;
+  line-height: 1.2;
+}
+
+.employee-usage-empty {
+  display: grid;
+  gap: 6px;
+  min-height: 156px;
+  align-content: center;
+  justify-items: center;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--control-bg);
+  text-align: center;
+}
+
+.employee-usage-empty strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.employee-recent-tasks {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.employee-recent-tasks-head,
+.employee-recent-task-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.employee-recent-tasks-head strong,
+.employee-recent-task-row strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.employee-recent-tasks-head small,
+.employee-recent-task-row small {
+  color: var(--description);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.employee-recent-tasks-head > span,
+.employee-recent-task-copy {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.employee-recent-task-copy > strong,
+.employee-recent-task-copy > small:not(.employee-recent-task-meta) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-recent-tasks-head > small {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.employee-recent-task-list {
+  display: grid;
+  gap: 0;
+}
+
+.employee-recent-task-row {
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.employee-recent-task-row:first-child {
+  border-top: 0;
+}
+
+.employee-recent-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+}
+
+.employee-recent-task-meta span:not(:last-child)::after {
+  content: "·";
+  margin-left: 10px;
+  color: var(--muted);
+}
+
+.employee-recent-task-row .status-pill {
+  flex: 0 0 auto;
+}
+
+.employee-usage-empty small,
+.employee-usage-updated {
+  color: var(--description);
+  font-size: 0.76rem;
+}
+
+.employee-usage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--description);
+  font-size: 0.7rem;
+}
+
+.employee-usage-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.employee-usage-legend i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(168, 206, 220, 0.22);
+  border-radius: 3px;
+  background: rgba(var(--usage-cell-rgb), 0.86);
+}
+
+.employee-usage-heatmap-wrap {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 6px 8px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+}
+
+.employee-usage-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 12px;
+}
+
+.employee-usage-heatmap {
+  display: grid;
+  grid-template-columns: repeat(13, 12px);
+  grid-template-rows: repeat(7, 12px);
+  gap: 6px;
+  width: max-content;
+  min-width: 0;
+}
+
+.employee-usage-cell {
+  --usage-cell-rgb: 100, 116, 139;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(168, 206, 220, 0.16);
+  border-radius: 4px;
+  background: rgba(168, 206, 220, 0.1);
+}
+
+.employee-usage-cell.level-1 {
+  background: rgba(var(--usage-cell-rgb), 0.38);
+}
+
+.employee-usage-cell.level-2 {
+  background: rgba(var(--usage-cell-rgb), 0.6);
+}
+
+.employee-usage-cell.level-3 {
+  background: rgba(var(--usage-cell-rgb), 0.8);
+}
+
+.employee-usage-cell.level-4 {
+  background: rgba(var(--usage-cell-rgb), 1);
+}
+
+.employee-usage-cell.source-desktop,
+.employee-usage-legend .source-desktop {
+  --usage-cell-rgb: 52, 168, 83;
+}
+
+.employee-usage-cell.source-non-desktop,
+.employee-usage-legend .source-non-desktop {
+  --usage-cell-rgb: 66, 133, 244;
+}
+
+.employee-usage-cell.source-mixed,
+.employee-usage-legend .source-mixed {
+  --usage-cell-rgb: 124, 105, 214;
+}
+
+.employee-usage-months {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 228px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+@container (max-width: 760px) {
+  .selected-employee-cockpit-grid > .entity-list .entity-row.has-row-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .selected-employee-cockpit-grid > .entity-list .employee-profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .selected-employee-cockpit-grid > .entity-list .employee-profile-section.is-wide {
+    grid-column: auto;
+  }
+
+  .selected-employee-cockpit-grid > .entity-list .entity-row.has-row-actions .entity-row-toggle {
+    padding-right: 14px;
+    padding-bottom: 8px;
+  }
+
+  .selected-employee-cockpit-grid > .entity-list .entity-row-actions {
+    position: static;
+    justify-content: flex-start;
+    max-width: none;
+    padding: 0 14px 14px 60px;
+  }
+}
+
+@media (max-width: 980px) {
+  .selected-employee-cockpit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .employee-usage-stats-card {
+    padding: 12px;
+  }
+
+  .employee-usage-metrics {
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    overflow-x: auto;
+  }
+}

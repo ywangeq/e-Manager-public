@@ -1,0 +1,660 @@
+.feishu-application-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.38);
+  backdrop-filter: blur(6px);
+}
+
+.feishu-application-modal {
+  display: grid;
+  gap: 14px;
+  width: min(820px, 100%);
+  max-height: min(90vh, 780px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid rgba(110, 168, 255, 0.28);
+  border-radius: 16px;
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(232, 248, 255, 0.82), rgba(242, 255, 246, 0.72)),
+    var(--panel);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+}
+
+.feishu-application-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.feishu-application-icon,
+.feishu-application-close,
+.feishu-application-step-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feishu-application-icon {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(50, 160, 110, 0.28);
+  border-radius: 12px;
+  color: var(--green);
+  background: rgba(50, 160, 110, 0.12);
+}
+
+.feishu-application-head strong {
+  display: block;
+  font-size: 1.12rem;
+  font-weight: 900;
+}
+
+.feishu-application-head small,
+.feishu-application-summary,
+.feishu-application-step small,
+.feishu-application-step em,
+.feishu-application-result small {
+  color: var(--description);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.feishu-application-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--field-bg);
+  cursor: pointer;
+}
+
+.feishu-application-close:hover,
+.feishu-application-close:focus-visible {
+  color: var(--text);
+  border-color: rgba(110, 168, 255, 0.42);
+  outline: none;
+}
+
+.feishu-application-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(110, 168, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.feishu-application-summary span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: start;
+  min-width: 0;
+  color: var(--text);
+}
+
+.feishu-application-summary svg {
+  grid-row: span 2;
+  margin-top: 2px;
+  color: var(--blue);
+}
+
+.feishu-application-summary strong,
+.feishu-application-summary small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.feishu-application-summary strong {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.feishu-application-summary small {
+  color: var(--description);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.feishu-application-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.feishu-application-flow-grid article {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(110, 168, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.feishu-application-flow-grid strong {
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.feishu-application-flow-grid small {
+  color: var(--description);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.feishu-application-deferred {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(250, 173, 20, 0.24);
+  border-radius: 10px;
+  background: rgba(250, 173, 20, 0.08);
+}
+
+.feishu-application-deferred span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.feishu-application-deferred strong {
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.feishu-application-deferred small {
+  color: var(--description);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.feishu-application-deferred div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.feishu-application-deferred b {
+  padding: 4px 8px;
+  border: 1px solid rgba(250, 173, 20, 0.28);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+}
+
+.feishu-application-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(180px, 0.6fr);
+  gap: 10px;
+}
+
+.feishu-application-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.feishu-application-field-wide {
+  grid-row: span 2;
+}
+
+.feishu-application-field input,
+.feishu-application-field select,
+.feishu-application-field textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--field-text);
+  background: var(--field-bg);
+  font: inherit;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.feishu-application-field small {
+  color: var(--description);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.feishu-application-field textarea {
+  min-height: 132px;
+  resize: vertical;
+}
+
+.feishu-application-field input:focus,
+.feishu-application-field select:focus,
+.feishu-application-field textarea:focus {
+  border-color: rgba(110, 168, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(110, 168, 255, 0.12);
+}
+
+.feishu-channel-intent-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.feishu-channel-intent-options button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field-bg);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+  cursor: pointer;
+}
+
+.feishu-channel-intent-options button.is-selected {
+  border-color: rgba(66, 133, 244, 0.42);
+  color: #1a73e8;
+  background: rgba(66, 133, 244, 0.1);
+}
+
+.feishu-channel-intent-options button:focus-visible {
+  border-color: rgba(66, 133, 244, 0.58);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.12);
+}
+
+.feishu-application-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field-bg);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.feishu-application-toggle > span:first-child {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.feishu-application-toggle small {
+  color: var(--description);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.feishu-application-toggle[aria-pressed="true"] {
+  border-color: rgba(250, 173, 20, 0.35);
+  background: rgba(250, 173, 20, 0.08);
+}
+
+.feishu-application-step-list {
+  display: grid;
+  gap: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.feishu-application-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 72px;
+  padding: 8px 0;
+  align-items: start;
+}
+
+.feishu-application-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 38px;
+  bottom: -8px;
+  width: 1px;
+  background: var(--line);
+}
+
+.feishu-application-step-dot {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--subtle);
+  background: var(--panel);
+}
+
+.feishu-application-step strong,
+.feishu-application-step small,
+.feishu-application-step em {
+  display: block;
+}
+
+.feishu-application-step strong {
+  margin-bottom: 3px;
+  font-size: 0.92rem;
+}
+
+.feishu-application-step em {
+  margin-top: 4px;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.feishu-application-step b {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.feishu-application-step.is-running .feishu-application-step-dot {
+  color: var(--blue);
+  border-color: rgba(110, 168, 255, 0.4);
+  background: rgba(110, 168, 255, 0.1);
+}
+
+.feishu-application-step.is-done .feishu-application-step-dot {
+  color: var(--green);
+  border-color: rgba(50, 160, 110, 0.34);
+  background: rgba(50, 160, 110, 0.1);
+}
+
+.feishu-application-step.is-failed .feishu-application-step-dot,
+.feishu-application-error {
+  color: var(--red);
+}
+
+.feishu-application-step.is-waiting .feishu-application-step-dot {
+  color: var(--yellow);
+  border-color: rgba(250, 173, 20, 0.34);
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.feishu-stage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(52, 168, 83, 0.26);
+  border-radius: 12px;
+  background: rgba(52, 168, 83, 0.08);
+}
+
+.feishu-stage-banner span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.feishu-stage-banner svg {
+  grid-row: span 2;
+  margin-top: 2px;
+  color: var(--green);
+}
+
+.feishu-stage-banner strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.feishu-stage-banner small {
+  color: var(--description);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.feishu-stage-banner button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(52, 168, 83, 0.32);
+  border-radius: 999px;
+  color: #188038;
+  background: rgba(255, 255, 255, 0.74);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.feishu-stage-banner button:hover,
+.feishu-stage-banner button:focus-visible {
+  border-color: rgba(52, 168, 83, 0.52);
+  background: rgba(52, 168, 83, 0.12);
+  outline: none;
+}
+
+.feishu-application-result,
+.feishu-application-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.feishu-application-result {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(50, 160, 110, 0.22);
+  background: rgba(50, 160, 110, 0.08);
+}
+
+.feishu-application-result-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: var(--text);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.feishu-application-result-link:hover,
+.feishu-application-result-link:focus-visible {
+  color: var(--blue);
+  text-decoration: underline;
+  outline: none;
+}
+
+.feishu-application-result.is-pending {
+  border-color: rgba(66, 133, 244, 0.24);
+  background: rgba(66, 133, 244, 0.08);
+}
+
+.feishu-application-result.is-approved {
+  border-color: rgba(52, 168, 83, 0.28);
+  background: rgba(52, 168, 83, 0.08);
+}
+
+.feishu-application-error {
+  border: 1px solid rgba(255, 122, 144, 0.32);
+  background: rgba(255, 122, 144, 0.08);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.feishu-application-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.feishu-application-cancel,
+.feishu-application-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(50, 160, 110, 0.36);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: rgba(50, 160, 110, 0.12);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.feishu-application-cancel {
+  border-color: rgba(255, 122, 144, 0.32);
+  color: var(--red);
+  background: rgba(255, 122, 144, 0.08);
+}
+
+.feishu-application-cancel:hover:not(:disabled),
+.feishu-application-cancel:focus-visible {
+  border-color: rgba(255, 122, 144, 0.52);
+  background: rgba(255, 122, 144, 0.12);
+  outline: none;
+}
+
+.feishu-application-primary:hover:not(:disabled),
+.feishu-application-primary:focus-visible {
+  border-color: rgba(50, 160, 110, 0.58);
+  background: rgba(50, 160, 110, 0.18);
+  outline: none;
+}
+
+.feishu-application-cancel:disabled,
+.feishu-application-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.feishu-application-primary.is-pending,
+.feishu-application-primary.is-pending:disabled {
+  border-color: rgba(66, 133, 244, 0.46);
+  color: #1a73e8;
+  background: rgba(66, 133, 244, 0.12);
+  cursor: default;
+  opacity: 1;
+}
+
+.feishu-application-primary.is-approved,
+.feishu-application-primary.is-approved:disabled {
+  border-color: rgba(52, 168, 83, 0.44);
+  color: #188038;
+  background: rgba(52, 168, 83, 0.12);
+  cursor: default;
+  opacity: 1;
+}
+
+.feishu-application-spin {
+  animation: feishu-application-spin 0.8s linear infinite;
+}
+
+@keyframes feishu-application-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .feishu-connection-confirm,
+  .feishu-stage-banner,
+  .feishu-application-deferred {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .feishu-application-backdrop {
+    align-items: start;
+    padding: 12px;
+  }
+
+  .feishu-application-modal {
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .feishu-application-form,
+  .feishu-application-summary,
+  .feishu-application-flow-grid,
+  .feishu-connection-checks,
+  .feishu-connection-form,
+  .feishu-connection-mode-options,
+  .feishu-admin-diagnostic-grid,
+  .feishu-permission-scope-list,
+  .feishu-permission-scope-list li,
+  .feishu-admin-connection-tests span,
+  .feishu-chat-ref-groups,
+  .feishu-chat-ref-row,
+  .feishu-channel-intent-options,
+  .feishu-application-step {
+    grid-template-columns: 1fr;
+  }
+
+  .feishu-application-field-wide,
+  .feishu-connection-wide,
+  .feishu-connection-full {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  .feishu-application-step {
+    padding-left: 38px;
+  }
+
+  .feishu-application-step-dot {
+    position: absolute;
+    left: 0;
+    top: 10px;
+  }
+
+  .feishu-application-step:not(:last-child)::after {
+    left: 13px;
+  }
+
+  .feishu-application-step b {
+    justify-self: start;
+  }
+
+  .feishu-application-deferred div {
+    justify-content: flex-start;
+  }
+}

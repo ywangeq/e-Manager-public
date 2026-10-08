@@ -1,0 +1,79 @@
+.cockpit-workspace { min-width: 0; --line: #dfe8e3; --panel: #fff; --text: #294238; --ink: #294238; --muted: #74877d; --control-bg: #f5f8f6; --detail-bg: #f8faf9; }
+.cockpit-work-filters { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.cockpit-work-filters [role=group] { display: flex; gap: 4px; flex-wrap: wrap; }
+.cockpit-work-filters button, .cockpit-detail-actions button, .cockpit-work-detail header button { border: 1px solid #dce7e1; border-radius: 7px; background: #fff; padding: 7px 11px; color: #436858; }
+.cockpit-work-filters button[aria-pressed=true] { background: #e4f3eb; border-color: #a9d3bf; color: #187858; }
+.cockpit-work-filters input { min-width: 190px; max-width: 100%; border: 1px solid #dce7e1; background: #fff; padding: 9px 12px; border-radius: 7px; color: #294238; }
+.cockpit-work-list { overflow: hidden; border: 1px solid #e0e8e3; border-radius: 10px; background: white; }
+.cockpit-work-list:empty { display: none; }
+.cockpit-work-list > button { display: flex; align-items: center; gap: 15px; width: 100%; padding: 16px; border: 0; border-bottom: 1px solid #edf1ee; background: transparent; text-align: left; color: #284535; }
+.cockpit-work-list > button:hover, .cockpit-work-list > button.is-selected { background: #edf7f1; }
+.cockpit-work-list > button > span { min-width: 0; flex: 1; }
+.cockpit-work-list strong, .cockpit-work-list small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cockpit-work-list small { color: #72857b; margin-top: 6px; line-height: 1.5; }
+.cockpit-work-list > button > svg { flex-shrink: 0; }
+.cockpit-work-list em { flex-shrink: 0; white-space: nowrap; font-style: normal; font-size: 11px; color: #4b7564; }
+.cockpit-work-detail { margin-top: 18px; border: 1px solid #dce7e1; border-radius: 12px; padding: 20px; background: white; }
+.cockpit-work-detail > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cockpit-work-detail h2 { font-size: 16px; margin: 6px 0; }
+.cockpit-work-detail small { color: #71887c; }
+.cockpit-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.cockpit-detail-actions button { display: inline-flex; align-items: center; gap: 5px; }
+.cockpit-work-detail .my-task-details { margin: 0; }
+.cockpit-workspace .personal-automations-panel { display: grid; gap: 12px; }
+.cockpit-workspace .personal-automations-panel.is-cockpit > .my-task-lane > header { align-items: center; }
+.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch { position: relative; flex: 0 0 35px; width: 35px; height: 21px; padding: 2px; border: 0; border-radius: 11px; background: #aebbb4; cursor: pointer; }
+.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch[aria-checked="true"] { background: #20866b; }
+.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch > span { display: block; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0002; transition: transform .15s ease; }
+.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch[aria-checked="true"] > span { transform: translateX(14px); }
+.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch:disabled { opacity: .5; cursor: default; }
+.cockpit-workspace .my-task-details { font-size: 12px; line-height: 1.65; }
+.cockpit-workspace .my-task-result strong { font-size: 12px; }
+.cockpit-workspace .my-task-detail-heading span, .cockpit-workspace .my-task-timeline li small { font-size: 11px; }
+.cockpit-workspace button:disabled { opacity: .45; cursor: not-allowed; }
+.cockpit-workspace button:focus-visible, .cockpit-workspace input:focus-visible { outline: 2px solid #239c78; outline-offset: 3px; }
+
+.personal-cockpit .cockpit-workspace { --muted: var(--cockpit-muted); --line: var(--cockpit-line); --panel: var(--cockpit-surface); --text: var(--cockpit-ink); --ink: var(--cockpit-ink); --control-bg: var(--cockpit-hover); --detail-bg: var(--cockpit-surface); }
+.personal-cockpit .cockpit-workspace > h2 { margin: 0 0 var(--cockpit-space-md); font-size: 15px; }
+.personal-cockpit .cockpit-work-filters button { border-color: transparent; border-radius: 8px; min-height: 36px; color: var(--cockpit-muted); background: var(--cockpit-surface); }
+.personal-cockpit .cockpit-work-filters input { border-color: var(--cockpit-line); border-radius: 8px; color: var(--cockpit-ink); background: var(--cockpit-surface); }
+.personal-cockpit .cockpit-work-filters button[aria-pressed=true] { border-color: var(--cockpit-line); background: var(--cockpit-selected); color: var(--cockpit-accent); font-weight: 600; }
+.personal-cockpit .cockpit-work-list { border-radius: 20px; border: 1px solid rgba(255,255,255,.7); background: var(--cockpit-surface); box-shadow: var(--cockpit-shadow); }
+.personal-cockpit .cockpit-work-list > button { padding: var(--cockpit-space-md) var(--cockpit-space-xs); color: var(--cockpit-ink); }
+.personal-cockpit .cockpit-work-list strong { white-space: normal; overflow-wrap: anywhere; font-weight: 600; line-height: 1.5; }
+.personal-cockpit .cockpit-work-list small { color: var(--cockpit-muted); white-space: normal; font-size: 12px; overflow-wrap: anywhere; }
+.personal-cockpit .cockpit-work-list > button:focus-visible { outline-offset: -2px; }
+.personal-cockpit .cockpit-work-list > button:active, .personal-cockpit .cockpit-work-list > button.is-selected { background: var(--cockpit-selected); }
+.personal-cockpit .cockpit-work-detail { min-width: 0; margin: 0; border-radius: var(--cockpit-radius); border-color: rgba(255,255,255,.7); background: var(--cockpit-surface); box-shadow: var(--cockpit-shadow); animation: cockpit-detail-arrive .28s ease; }
+.personal-cockpit .cockpit-work-detail > header { align-items: start; }
+.personal-cockpit .cockpit-work-detail > header > div { min-width: 0; }
+.personal-cockpit .cockpit-work-detail > header button { flex: 0 0 36px; display: grid; place-items: center; padding: 0; height: 36px; }
+.personal-cockpit .cockpit-work-detail header button, .personal-cockpit .cockpit-detail-actions button { color: var(--cockpit-muted); background: var(--cockpit-hover); border-color: var(--cockpit-line); }
+.personal-cockpit .cockpit-work-list > button { border-color: var(--cockpit-line); }
+.personal-cockpit .cockpit-work-list strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.personal-cockpit .cockpit-work-layout.has-detail .cockpit-work-list > button { display: grid; grid-template-columns: minmax(0,1fr) 18px; gap: 6px; }
+.personal-cockpit .cockpit-work-layout.has-detail .cockpit-work-list > button > span { grid-column: 1 / -1; }
+.personal-cockpit .cockpit-work-layout.has-detail .cockpit-work-list > button > em { grid-column: 1; }
+.personal-cockpit .cockpit-work-detail .my-task-details, .personal-cockpit .cockpit-work-detail .my-task-result, .personal-cockpit .cockpit-work-detail .my-task-timeline { min-width: 0; overflow-wrap: anywhere; }
+.personal-cockpit .cockpit-work-detail .my-task-details { padding: 12px 0; background: transparent; border: 0; }
+.personal-cockpit .cockpit-work-detail .my-task-details.is-error { color: var(--status-danger); }
+.personal-cockpit .cockpit-work-detail .artifact-delivery { background: var(--cockpit-hover); border-color: var(--cockpit-line); }
+.personal-cockpit .cockpit-work-detail .artifact-delivery-copy small, .personal-cockpit .cockpit-content-detail .artifact-delivery-copy small { color: var(--cockpit-muted); }
+.personal-cockpit .cockpit-work-detail .artifact-delivery-actions button, .personal-cockpit .cockpit-content-detail .artifact-delivery-actions button, .personal-cockpit .cockpit-work-detail .artifact-open-menu > summary, .personal-cockpit .cockpit-content-detail .artifact-open-menu > summary { background: var(--cockpit-surface); border-color: var(--cockpit-line); color: var(--cockpit-accent); }
+.personal-cockpit .cockpit-work-detail .my-task-result { background: var(--cockpit-hover); border-color: var(--cockpit-line); }
+.personal-cockpit .cockpit-workspace .my-task-lane { border-radius: 20px; padding: 12px; background: var(--cockpit-surface); border-color: rgba(255,255,255,.7); box-shadow: var(--cockpit-shadow); }
+.personal-cockpit .cockpit-workspace .my-task-lane > header { background: transparent; border-color: var(--cockpit-line); }
+.personal-cockpit .cockpit-workspace .personal-automation-action, .personal-cockpit .cockpit-workspace .automation-view-toggle button, .personal-cockpit .cockpit-workspace .automation-refresh { color: var(--cockpit-accent); background: var(--cockpit-surface); border-color: var(--cockpit-line); }
+.personal-cockpit .cockpit-workspace .personal-automation-switch[aria-checked="true"] { background: #6685b4; }
+.personal-cockpit .cockpit-work-detail h2 { overflow-wrap: anywhere; }
+.personal-cockpit .cockpit-detail-actions button:active { background: var(--cockpit-selected); }
+@media (hover: hover) {
+  .personal-cockpit .cockpit-work-filters button:hover:not(:disabled), .personal-cockpit .cockpit-work-list > button:hover { background: var(--cockpit-hover); }
+}
+@media (max-width: 480px) {
+  .personal-cockpit .cockpit-work-list > button { flex-wrap: wrap; gap: var(--cockpit-space-xs); }
+  .personal-cockpit .cockpit-work-list > button > span { flex-basis: 100%; }
+  .personal-cockpit .cockpit-work-list > button > svg { margin-left: auto; }
+  .personal-cockpit .cockpit-work-detail { padding: var(--cockpit-space-sm); }
+  .personal-cockpit .cockpit-work-detail > header { flex-wrap: wrap; }
+}

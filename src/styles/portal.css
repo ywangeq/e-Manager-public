@@ -1,0 +1,299 @@
+.portal {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 0;
+  background: #061017;
+}
+
+.portal-pillar {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 1;
+  background:
+    radial-gradient(circle at 66% 45%, rgba(139, 220, 255, 0.13), transparent 36%),
+    #03080c;
+}
+
+.portal-terminal::before,
+.portal-terminal::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  pointer-events: none;
+}
+
+.portal-terminal::before {
+  background:
+    radial-gradient(circle at 72% 46%, transparent 0 36%, rgba(3, 8, 12, 0.12) 54%, rgba(3, 8, 12, 0.34) 82%),
+    linear-gradient(90deg, rgba(3, 8, 12, 0.38), rgba(3, 8, 12, 0.02) 42%, rgba(3, 8, 12, 0.28));
+}
+
+.portal-terminal::after {
+  background:
+    linear-gradient(180deg, rgba(3, 8, 12, 0.3), transparent 22%, rgba(3, 8, 12, 0.34)),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 5px);
+  mix-blend-mode: soft-light;
+  opacity: 0.44;
+}
+
+.light-pillar-container,
+.light-pillar-fallback,
+.faulty-terminal-container {
+  width: 100%;
+  height: 100%;
+}
+
+.portal-pillar.light-pillar-container,
+.portal-pillar.light-pillar-fallback,
+.portal-pillar.faulty-terminal-container {
+  width: auto;
+  height: auto;
+}
+
+.light-pillar-container canvas,
+.faulty-terminal-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.light-pillar-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.portal-copy,
+.login-panel {
+  position: absolute;
+  z-index: 2;
+}
+
+.portal-copy {
+  left: clamp(34px, 5.4vw, 88px);
+  top: 50%;
+  width: min(560px, 39vw);
+  transform: translateY(-37%);
+}
+
+.login-panel {
+  top: 50%;
+  right: clamp(78px, 8.8vw, 168px);
+  width: min(390px, calc(100vw - 64px));
+  transform: translateY(-33%);
+}
+
+.brand-lockup,
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark,
+.icon-chip {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(85, 226, 168, 0.38);
+  border-radius: var(--radius);
+  color: var(--green);
+  background: rgba(85, 226, 168, 0.1);
+}
+
+.portal-copy h1 {
+  max-width: 560px;
+  margin: 18px 0;
+  font-size: clamp(3rem, 4.85vw, 5.2rem);
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.portal-subtitle {
+  max-width: 560px;
+  margin: 0;
+  color: #c6d4df;
+  font-size: clamp(1rem, 1.08vw, 1.25rem);
+}
+
+.portal-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.portal-proof span,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--pill-text);
+  background: rgba(9, 20, 29, 0.66);
+}
+
+.login-panel {
+  display: grid;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: rgba(9, 20, 29, 0.78);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+
+.login-panel h2,
+.panel h2,
+.topbar h1 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.login-panel p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.login-panel form,
+.view-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.login-panel label {
+  display: grid;
+  gap: 8px;
+  color: #d8e5ee;
+  font-size: 0.88rem;
+}
+
+.login-panel input,
+.search-box input,
+.skill-draft-form input,
+.skill-draft-form select,
+.skill-draft-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  outline: none;
+  color: var(--field-text);
+  background: var(--field-bg);
+}
+
+.login-panel input::placeholder,
+.search-box input::placeholder,
+.skill-draft-form input::placeholder,
+.skill-draft-form textarea::placeholder {
+  color: var(--field-placeholder);
+}
+
+.login-panel input {
+  height: 46px;
+  padding: 0 12px;
+}
+
+.skill-draft-form input,
+.skill-draft-form select {
+  height: 40px;
+  padding: 0 10px;
+}
+
+.skill-draft-form textarea {
+  min-height: 78px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.login-panel input:focus,
+.search-box:focus-within,
+.skill-draft-form input:focus,
+.skill-draft-form select:focus,
+.skill-draft-form textarea:focus {
+  border-color: var(--field-focus-border);
+  box-shadow: 0 0 0 3px var(--field-focus-ring);
+}
+
+.primary-action,
+.enterprise-action,
+.ghost-action,
+.sidebar nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  color: var(--text);
+}
+
+.primary-action {
+  width: 100%;
+  height: 48px;
+  border-color: rgba(85, 226, 168, 0.5);
+  background: linear-gradient(135deg, #2fd89c, #5f9eff);
+  color: #031019;
+  font-weight: 800;
+}
+
+.enterprise-action {
+  min-height: 52px;
+  border-color: rgba(110, 168, 255, 0.44);
+  color: #e6f1ff;
+  background: rgba(110, 168, 255, 0.13);
+  font-weight: 800;
+}
+
+.enterprise-action span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.enterprise-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.ghost-action {
+  padding: 0 12px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.form-error {
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 122, 144, 0.45);
+  border-radius: var(--radius);
+  color: #ffd8df;
+  background: rgba(255, 122, 144, 0.12);
+}

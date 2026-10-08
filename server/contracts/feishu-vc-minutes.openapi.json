@@ -1,0 +1,130 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Feishu VC And Minutes Governed API",
+    "version": "2026.08.17"
+  },
+  "paths": {
+    "/open-apis/vc/v1/reserves/apply": {
+      "post": {
+        "operationId": "meetings.create",
+        "summary": "以当前用户身份预约一场培训会议",
+        "tags": ["training_meeting"],
+        "parameters": [
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["open_id"], "default": "open_id" }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "create_training_meeting",
+          "capabilities": ["training_meeting"],
+          "risk": "controlled_write",
+          "confirmationPolicy": "explicit_per_call",
+          "scope": ["vc:reserve"],
+          "writebackBoundary": "仅预约当前用户本轮培训会议；必须保留 operation receipt"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "end_time": { "type": "string", "pattern": "^[0-9]{10,13}$" },
+                  "meeting_settings": {
+                    "type": "object",
+                    "properties": {
+                      "topic": { "type": "string", "minLength": 1, "maxLength": 120 },
+                      "meeting_initial_type": { "type": "integer", "enum": [1] },
+                      "auto_record": { "type": "boolean", "const": true }
+                    },
+                    "required": ["topic", "meeting_initial_type", "auto_record"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["end_time", "meeting_settings"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "预约回执与当前用户可加入链接" } }
+      }
+    },
+    "/open-apis/minutes/v1/minutes/{minuteRef}": {
+      "get": {
+        "operationId": "minutes.get",
+        "summary": "读取本轮会议妙记的基础状态",
+        "tags": ["training_minutes"],
+        "parameters": [
+          {
+            "name": "minuteRef",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 24, "maxLength": 24, "x-agent-managed": true }
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["open_id"], "default": "open_id" }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "read_training_minutes",
+          "capabilities": ["training_minutes"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["minutes:minutes:readonly"],
+          "writebackBoundary": "none"
+        },
+        "responses": { "200": { "description": "当前用户可访问妙记的基础状态安全投影" } }
+      }
+    },
+    "/open-apis/minutes/v1/minutes/{minuteToken}/transcript": {
+      "get": {
+        "operationId": "minutes.transcript.export",
+        "summary": "导出当前用户可访问的培训妙记文字记录",
+        "tags": ["training_minutes"],
+        "parameters": [
+          {
+            "name": "minuteToken",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 24, "maxLength": 24, "x-agent-managed": true }
+          },
+          {
+            "name": "need_speaker",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean", "default": true }
+          },
+          {
+            "name": "need_timestamp",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean", "default": true }
+          },
+          {
+            "name": "file_format",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["txt", "srt"], "default": "txt" }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "export_training_minutes_transcript",
+          "capabilities": ["training_minutes"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["minutes:minutes.transcript:export"],
+          "writebackBoundary": "none"
+        },
+        "responses": { "200": { "description": "当前用户有权导出的妙记文字记录，限本轮临时 Agent 上下文" } }
+      }
+    }
+  }
+}

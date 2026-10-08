@@ -1,0 +1,597 @@
+.employee-department-change-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.employee-responsibility-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.employee-responsibility-control > span,
+.employee-responsibility-control button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.employee-responsibility-control > span {
+  color: var(--muted);
+}
+
+.employee-responsibility-control button {
+  flex: 0 0 auto;
+}
+
+.employee-responsibility-business-owner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(52, 168, 83, 0.24);
+  border-radius: var(--radius);
+  background: rgba(52, 168, 83, 0.06);
+}
+
+.employee-responsibility-business-owner > svg {
+  color: var(--green);
+}
+
+.employee-responsibility-business-owner > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.employee-responsibility-business-owner small,
+.employee-responsibility-business-owner em {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.employee-responsibility-business-owner strong {
+  color: var(--text);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.employee-responsibility-business-owner em {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #217a3c;
+  background: rgba(52, 168, 83, 0.1);
+  white-space: nowrap;
+}
+
+.employee-responsibility-pending dl {
+  margin: 0;
+}
+
+.employee-ownership-technical-details {
+  border-top: 1px solid var(--line);
+}
+
+.employee-ownership-technical-details summary {
+  padding-top: 10px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.employee-ownership-technical-details[open] summary {
+  margin-bottom: 8px;
+}
+
+.employee-department-change-control > span,
+.employee-department-change-control button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.employee-department-change-control > span {
+  color: var(--muted);
+}
+
+.employee-department-change-control small {
+  overflow-wrap: anywhere;
+}
+
+.employee-department-change-control button {
+  flex: 0 0 auto;
+}
+
+.employee-department-change-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(12, 22, 18, 0.08);
+  backdrop-filter: blur(2px);
+}
+
+.employee-department-change-sheet {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(620px, calc(100vw - 24px));
+  height: 100vh;
+  height: 100dvh;
+  min-width: 0;
+  padding: 14px;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: -14px 0 32px rgba(18, 32, 27, 0.14);
+  scrollbar-gutter: stable;
+}
+
+.employee-department-change-head {
+  position: sticky;
+  top: -14px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -14px -14px 0;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 94%, #f7fbf8 6%);
+}
+
+.employee-department-change-head > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.employee-department-change-head small {
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.employee-department-change-head strong {
+  color: var(--text);
+  font-size: 1.04rem;
+}
+
+.employee-department-change-head b {
+  color: var(--muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.employee-department-change-head button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.employee-department-current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.employee-department-current > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.employee-department-current span,
+.employee-department-change-fields label > span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.employee-department-current strong {
+  color: var(--text);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.employee-department-current > svg {
+  color: var(--blue);
+}
+
+.employee-department-change-form,
+.employee-department-change-fields,
+.employee-department-change-impact,
+.employee-department-pending {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.employee-department-change-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.employee-department-change-fields label {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.employee-department-change-fields label.is-wide {
+  grid-column: span 2;
+}
+
+.employee-department-multi-select {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--detail-bg);
+}
+
+.employee-department-multi-select legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.employee-department-multi-select > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.employee-department-multi-select .employee-department-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  margin-bottom: 8px;
+  cursor: text;
+}
+
+.employee-department-search svg {
+  color: var(--muted);
+}
+
+.employee-department-multi-select .employee-department-search input {
+  height: 24px;
+  border: 0;
+  background: transparent;
+  outline: 0;
+}
+
+.employee-department-multi-select label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--control-bg);
+  cursor: pointer;
+}
+
+.employee-department-multi-select input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+
+.employee-department-multi-select label > span {
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.employee-department-multi-select label > small {
+  padding: 2px 5px;
+  border-radius: 999px;
+  color: var(--blue);
+  background: rgba(66, 133, 244, 0.08);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.employee-department-change-fields select,
+.employee-department-change-fields input,
+.employee-department-change-fields textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--control-bg);
+  font: inherit;
+}
+
+.employee-department-change-fields select,
+.employee-department-change-fields input {
+  min-height: 38px;
+  padding: 7px 9px;
+}
+
+.employee-department-change-fields textarea {
+  resize: vertical;
+  padding: 9px;
+  line-height: 1.45;
+}
+
+.employee-department-change-fields label > small {
+  color: var(--description);
+  font-size: 0.72rem;
+}
+
+.employee-department-change-fields label > small.is-error {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.employee-department-change-impact,
+.employee-department-pending {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--detail-bg);
+}
+
+.employee-department-change-impact > header,
+.employee-department-pending > header,
+.employee-department-pending > header > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.employee-department-change-impact > header span,
+.employee-department-pending > header small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.employee-department-impact-list {
+  display: grid;
+  gap: 0;
+}
+
+.employee-department-impact-list > span {
+  display: grid;
+  grid-template-columns: auto 100px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.employee-department-impact-list > span:first-child {
+  border-top: 0;
+}
+
+.employee-department-impact-list svg {
+  color: var(--green);
+}
+
+.employee-department-impact-list .is-warn svg {
+  color: #b7791f;
+}
+
+.employee-department-impact-list b {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.employee-department-impact-list small {
+  color: var(--description);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.employee-department-change-actions,
+.employee-department-review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.employee-department-change-actions > span {
+  color: var(--description);
+  font-size: 0.74rem;
+}
+
+.employee-department-change-actions button,
+.employee-department-review-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.employee-department-change-actions button:disabled {
+  border-color: var(--line);
+  color: var(--muted);
+  background: var(--control-bg);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.employee-department-pending > header {
+  justify-content: space-between;
+}
+
+.employee-department-pending-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--control-bg);
+}
+
+.employee-department-pending-route span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.employee-department-pending dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.employee-department-pending dl div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.employee-department-pending dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.employee-department-pending dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.employee-department-pending > p,
+.employee-department-change-loading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--description);
+  font-size: 0.78rem;
+}
+
+.employee-department-review-actions {
+  justify-content: flex-end;
+}
+
+.employee-department-review-actions .is-reject {
+  color: var(--red);
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+.employee-department-change-message {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(52, 168, 83, 0.24);
+  border-radius: 8px;
+  color: #217a3c;
+  background: rgba(52, 168, 83, 0.08);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.employee-department-change-message.is-error {
+  color: var(--red);
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+@media (max-width: 720px) {
+  .employee-department-change-fields,
+  .employee-department-current,
+  .employee-department-pending-route,
+  .employee-department-impact-list > span {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-department-multi-select > div {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-department-change-fields label.is-wide {
+    grid-column: auto;
+  }
+
+  .employee-department-current > svg,
+  .employee-department-pending-route > svg {
+    transform: rotate(90deg);
+  }
+
+  .employee-department-change-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .employee-department-change-actions button {
+    width: 100%;
+  }
+
+  .employee-responsibility-control,
+  .employee-responsibility-business-owner {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .employee-responsibility-control {
+    flex-direction: column;
+  }
+
+  .employee-responsibility-control button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .employee-responsibility-business-owner em {
+    justify-self: start;
+  }
+}

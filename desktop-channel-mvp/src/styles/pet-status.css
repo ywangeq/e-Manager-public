@@ -1,0 +1,192 @@
+.pet-dock {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pet-open-button {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.pet-open-button:active {
+  cursor: grabbing;
+}
+
+.pet-open-button > img {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 185px;
+  height: 185px;
+  object-fit: contain;
+  -webkit-user-drag: none;
+  user-select: none;
+  filter: drop-shadow(0 12px 11px rgba(20, 52, 44, 0.22));
+  transform: translateX(-50%);
+  transition: transform 180ms ease;
+}
+
+.pet-dock.is-employee-pet .pet-open-button > img {
+  top: 6px;
+  width: 176px;
+  height: 176px;
+}
+
+.pet-open-button:hover > img {
+  transform: translateX(-50%) translateY(-3px);
+}
+
+.pet-dock.is-attention .pet-open-button > img,
+.pet-dock.is-blocked .pet-open-button > img {
+  transform: translateX(-50%) rotate(1.5deg);
+}
+
+.pet-status-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  display: flex;
+  min-width: 94px;
+  max-width: 184px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  overflow: hidden;
+  color: #315048;
+  font-size: 10px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid rgba(185, 210, 202, 0.78);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.91);
+  box-shadow: 0 5px 15px rgba(27, 63, 54, 0.15);
+  transform: translateX(-50%);
+}
+
+.pet-status-pill.is-working {
+  color: #fff;
+  border-color: var(--mint-dark);
+  background: var(--mint-dark);
+}
+
+.pet-status-pill.is-update {
+  width: 162px;
+  height: 42px;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 10px 7px;
+  color: #23483e;
+  border-color: rgba(113, 160, 147, 0.46);
+  background: rgba(248, 252, 250, 0.96);
+  box-shadow: 0 7px 20px rgba(23, 65, 54, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+}
+
+.pet-update-copy {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  line-height: 18px;
+}
+
+.pet-update-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.pet-update-icon {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--mint-dark);
+  border: 1px solid rgba(53, 173, 145, 0.22);
+  border-radius: 50%;
+  background: var(--mint-soft);
+  place-items: center;
+}
+
+.pet-update-copy strong {
+  min-width: 28px;
+  color: var(--mint-dark);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pet-update-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce9e5;
+  box-shadow: inset 0 1px 1px rgba(24, 69, 57, 0.09);
+}
+
+.pet-update-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--mint);
+  box-shadow: 0 0 7px rgba(53, 173, 145, 0.35);
+  transition: width 180ms ease;
+}
+
+.pet-status-pill.is-installing .pet-update-icon {
+  color: #24506b;
+  border-color: rgba(36, 80, 107, 0.18);
+  background: #e8f1f6;
+}
+
+.pet-status-pill.is-installing .pet-update-icon svg {
+  animation: spin 1.1s linear infinite;
+}
+
+.pet-status-pill.is-installing .pet-update-track > span {
+  background: #3c7d9c;
+  box-shadow: 0 0 7px rgba(60, 125, 156, 0.3);
+}
+
+.pet-status-pill.is-blocked {
+  color: #8b3e3e;
+  border-color: #e7baba;
+  background: #fff0f0;
+}
+
+.pet-status-pill.is-success,
+.pet-status-pill.is-received {
+  color: #126353;
+  border-color: #b9dfd4;
+  background: #effbf7;
+}
+
+.pet-status-light {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 3px rgba(68, 203, 176, 0.17);
+}

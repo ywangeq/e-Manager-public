@@ -1,0 +1,347 @@
+.employee-config-files-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.config-workbench-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(110, 168, 255, 0.22);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.config-workbench-head strong,
+.config-workbench-head p {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.config-workbench-head p {
+  margin: 4px 0 0;
+  color: var(--description);
+  font-size: 0.84rem;
+}
+
+.config-workbench-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.38fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.config-doc-list,
+.config-doc-editor {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--detail-bg);
+}
+
+.config-doc-list {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 10px;
+}
+
+.config-doc-group {
+  display: grid;
+  gap: 7px;
+}
+
+.config-doc-group > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.config-doc-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: inherit;
+  background: var(--control-bg);
+  text-align: left;
+}
+
+.config-doc-item:hover,
+.config-doc-item:focus-visible,
+.config-doc-item.is-active {
+  border-color: rgba(110, 168, 255, 0.4);
+  background: rgba(110, 168, 255, 0.08);
+}
+
+.config-doc-item strong,
+.config-doc-item small,
+.config-doc-item em {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.config-doc-item small,
+.config-doc-item em {
+  color: var(--description);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.config-doc-item .status-pill {
+  min-height: 24px;
+  padding: 3px 7px;
+  font-size: 0.72rem;
+}
+
+.config-doc-editor {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 10px;
+}
+
+.config-doc-editor-head,
+.config-doc-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.config-doc-title,
+.config-doc-actions-inline {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.config-doc-title small {
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--control-bg);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.config-doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.config-doc-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--description);
+  background: var(--control-bg);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.config-doc-meta b {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+}
+
+.employee-config-files-panel .config-doc-pill-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-color: var(--pill-action-border);
+  border-radius: 999px;
+  color: var(--pill-action-text);
+  background: var(--pill-action-bg);
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 850;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+.employee-config-files-panel .config-doc-pill-action svg {
+  flex: 0 0 auto;
+}
+
+.employee-config-files-panel .config-doc-pill-blue {
+  --pill-action-text: #1a73e8;
+  --pill-action-border: rgba(26, 115, 232, 0.28);
+  --pill-action-bg: rgba(26, 115, 232, 0.08);
+  --pill-action-hover-bg: rgba(26, 115, 232, 0.14);
+  --pill-action-hover-border: rgba(26, 115, 232, 0.42);
+}
+
+.employee-config-files-panel .config-doc-pill-green {
+  --pill-action-text: #188038;
+  --pill-action-border: rgba(52, 168, 83, 0.28);
+  --pill-action-bg: rgba(52, 168, 83, 0.08);
+  --pill-action-hover-bg: rgba(52, 168, 83, 0.14);
+  --pill-action-hover-border: rgba(52, 168, 83, 0.42);
+}
+
+.employee-config-files-panel .config-doc-pill-yellow {
+  --pill-action-text: #a15c00;
+  --pill-action-border: rgba(251, 188, 4, 0.34);
+  --pill-action-bg: rgba(251, 188, 4, 0.1);
+  --pill-action-hover-bg: rgba(251, 188, 4, 0.16);
+  --pill-action-hover-border: rgba(251, 188, 4, 0.5);
+}
+
+.employee-config-files-panel .config-doc-pill-red {
+  --pill-action-text: #d93025;
+  --pill-action-border: rgba(234, 67, 53, 0.28);
+  --pill-action-bg: rgba(234, 67, 53, 0.08);
+  --pill-action-hover-bg: rgba(234, 67, 53, 0.14);
+  --pill-action-hover-border: rgba(234, 67, 53, 0.42);
+}
+
+.employee-config-files-panel .config-doc-pill-action:hover:not(:disabled),
+.employee-config-files-panel .config-doc-pill-action:focus-visible:not(:disabled),
+.employee-config-files-panel .config-doc-pill-action.is-active:not(:disabled) {
+  border-color: var(--pill-action-hover-border);
+  background: var(--pill-action-hover-bg);
+  transform: translateY(-1px);
+}
+
+.employee-config-files-panel .config-doc-pill-action:disabled {
+  border-color: rgba(148, 163, 184, 0.35);
+  color: var(--subtle);
+  background: var(--control-bg);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.config-doc-preview,
+.config-doc-textarea {
+  width: 100%;
+  min-height: 350px;
+  max-height: 560px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--field-text);
+  background: var(--field-bg);
+  font: 0.84rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.config-doc-textarea {
+  resize: vertical;
+}
+
+.config-change-note {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.config-change-note input {
+  min-height: 38px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--field-text);
+  background: var(--field-bg);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.config-doc-actions span {
+  min-width: 0;
+  color: var(--description);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.config-doc-actions .primary-action,
+.config-doc-actions .table-action {
+  width: auto;
+  min-width: 108px;
+  height: 38px;
+}
+
+.config-validation-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.config-validation-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--control-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.config-validation-strip .is-ok {
+  border-color: rgba(85, 226, 168, 0.34);
+  color: var(--green);
+  background: rgba(85, 226, 168, 0.08);
+}
+
+.config-validation-strip .is-missing {
+  border-color: rgba(255, 209, 102, 0.42);
+  color: var(--amber);
+  background: rgba(255, 209, 102, 0.1);
+}
+
+@media (max-width: 1120px) {
+  .config-workbench-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) {
+  .config-doc-editor-head,
+  .config-doc-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .config-workbench-head,
+  .config-doc-item {
+    grid-template-columns: 1fr;
+  }
+
+  .config-doc-actions .primary-action,
+  .config-doc-actions .table-action {
+    width: 100%;
+  }
+}

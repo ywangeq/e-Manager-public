@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 2,
+  "managementServerUrl": "http://127.0.0.1:14878",
+  "allowInsecureMvpToolCredentialTransport": false,
+  "updateChannel": "local",
+  "desktopUpdatePolicy": {
+    "contractVersion": "desktop-update-policy.v1",
+    "mode": "disabled"
+  }
+}

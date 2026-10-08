@@ -1,0 +1,55 @@
+.group-assignment, .group-assignment-popover { --assignment-ink: #263a50; --assignment-muted: #586a7e; --assignment-accent: #315e86; --assignment-rim: rgba(140, 164, 185, .42); }
+.group-assignment { position: relative; min-width: 0; }
+.group-assignment-trigger { --assignment-ink: #423269; --assignment-muted: #59447c; --assignment-accent: #64449b; --assignment-rim: rgba(143, 123, 218, .48); display: flex; align-items: center; gap: 6px; max-width: 200px; min-height: 32px; padding: 5px 9px; font-size: 12px; line-height: 20px; position: relative; isolation: isolate; border: 1px solid var(--assignment-rim); border-radius: 999px; background: radial-gradient(ellipse at 25% 0%, #ffffff99, #ffffff00 68%), linear-gradient(110deg, #b8caffeb, #d1b7fbeb 52%, #b99affeb); color: var(--assignment-ink); box-shadow: inset 0 1px 1px #fff, inset 0 -2px 3px #a478cf30, 0 2px 4px #65418412, 0 5px 12px #6541840a; backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); cursor: pointer; }
+.group-assignment-trigger::before { content: ""; position: absolute; inset: 1px 8px 48%; border-radius: 999px; background: linear-gradient(180deg, #ffffffa6, #ffffff00); pointer-events: none; z-index: -1; }
+.group-assignment-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-assignment-trigger > svg:first-child { color: var(--assignment-accent); }
+.group-assignment-trigger > svg:last-child { color: var(--assignment-muted); }
+.group-assignment-trigger[aria-expanded="true"] { border-color: #a37ac7; box-shadow: inset 0 1px 2px #fff, inset 0 -2px 4px #a478cf3d, 0 3px 12px #65418422; }
+.group-assignment-trigger:not(:disabled):active { box-shadow: inset 0 2px 5px #6541841c, inset 0 -1px 1px #fff, 0 1px 3px #65418410; }
+.group-assignment-trigger:disabled { cursor: default; color: var(--assignment-muted); box-shadow: inset 0 1px 1px #fff, 0 1px 3px #6541840a; }
+.group-assignment button:focus-visible, .group-assignment-popover button:focus-visible, .group-assignment-search:focus-within { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.group-assignment-popover { position: fixed; inset: auto; margin: 0; width: min(304px,calc(100vw - 32px)); max-height: min(340px,calc(100vh - 32px)); box-sizing: border-box; overflow-y: auto; padding: 12px; border: 1px solid var(--assignment-rim); border-radius: 22px; background: linear-gradient(145deg, #fffffff5, #f0f5faed 65%, #ffffffeb); color: var(--assignment-ink); box-shadow: inset 0 1px 2px #fff, inset 0 -1px 2px #b5c8d433, 0 12px 36px #263a5026, 0 2px 8px #263a5010; backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); }
+.group-assignment-popover header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+.group-assignment-popover header button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.group-assignment-search { display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid #a6bacb66; border-radius: 12px; background: #ffffffa6; box-shadow: inset 0 1px 3px #304b620d, 0 1px 0 #fff; }
+.group-assignment-search input { min-width: 0; width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: inherit; font-size: 12px; }
+.group-assignment-search input:focus-visible { outline: none; box-shadow: none; }
+.group-assignment-option { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 54px; padding: 8px; margin-top: 5px; border: 0; border-radius: 10px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.group-assignment-option[aria-pressed="true"] { background: linear-gradient(180deg, #ffffffd9, #e2ecf4bf); color: var(--assignment-ink); box-shadow: inset 0 0 0 1px #9cb4c966, inset 0 1px 1px #fff, 0 2px 5px #304b620d; }
+.group-assignment-option > span:not(.group-assignment-initial) { display: grid; gap: 4px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.group-assignment-option strong { font-size: 13px; font-weight: 600; }
+.group-assignment-option small { color: var(--assignment-muted); font-size: 11px; }
+.group-assignment-option img, .group-assignment-initial { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: #eef2f7; }
+.group-assignment-popover p { margin: 10px 8px 2px; font-size: 12px; color: var(--assignment-muted); }
+.group-prototype-shell .group-composer.has-assignment { display: grid; grid-template-columns: minmax(0,auto) 28px 1fr 34px; gap: 8px; padding: 12px; }
+.group-prototype-shell .group-composer.has-assignment > input:not([hidden]) { grid-column: 1 / -1; grid-row: 1; width: 100%; min-height: 36px; }
+.group-composer.has-assignment > .group-assignment { grid-column: 1; grid-row: 2; }
+.group-composer.has-assignment > .group-composer-attach { grid-column: 2; grid-row: 2; }
+.group-composer.has-assignment > button:last-of-type { grid-column: 4; grid-row: 2; }
+.group-composer.has-assignment > input[hidden] { display: none; }
+@media (hover:hover) {
+  .group-assignment-trigger:not(:disabled):hover { border-color: #a37ac7; box-shadow: inset 0 1px 2px #fff, inset 0 -2px 3px #a478cf30, 0 3px 7px #6541841c, 0 7px 16px #6541840d; }
+  .group-assignment-option:not([aria-pressed="true"]):hover, .group-assignment-popover header button:hover { background: #ffffffb3; box-shadow: inset 0 0 0 1px #c6d4df80; }
+}
+@supports not (backdrop-filter: blur(1px)) { .group-assignment-trigger, .group-assignment-popover { background-color: #f4f8fc; } }
+@media (max-width:480px) { .group-assignment-trigger { max-width: 170px; } }
+
+.group-assignment-trigger.is-automatic { width: 32px; max-width: 32px; padding: 5px; justify-content: center; gap: 0; }
+.group-assignment-trigger.is-automatic > svg { color: var(--assignment-accent); }
+.group-assignment-guidance { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 2; display: flex; align-items: center; gap: 8px; width: min(232px,calc(100vw - 48px)); box-sizing: border-box; padding: 8px 10px; border: 1px solid #d9d2eb; border-radius: 12px; background: #faf8ff; color: #493668; box-shadow: 0 3px 12px #65418414; font-size: 12px; line-height: 18px; }
+.group-assignment-guidance > span { flex: 1; }
+.group-assignment-guidance button { display: grid; place-items: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+
+/* One visual contract for automatic and direct-employee workbench input. */
+.group-prototype-shell .workbench-composer.has-assignment { display: grid; grid-template-columns: minmax(0, auto) 28px minmax(0, 1fr) 34px; align-items: center; gap: 8px; padding: 12px; border: 1px solid #d8dfe8; border-radius: 12px; background: #ffffffdc; box-shadow: 0 3px 11px #263a5010; }
+.group-prototype-shell .workbench-composer.has-assignment > input:not([hidden]),
+.group-prototype-shell .workbench-composer.has-assignment > textarea { grid-column: 1 / -1; grid-row: 1; width: 100%; min-width: 0; min-height: 36px; max-height: 64px; padding: 7px 0; border: 0; outline: 0; background: transparent; color: #263a50; font-size: 12px; line-height: 1.5; resize: none; }
+.group-prototype-shell .workbench-composer.has-assignment > textarea::placeholder,
+.group-prototype-shell .workbench-composer.has-assignment > input::placeholder { color: #68776f; }
+.group-prototype-shell .workbench-composer.has-assignment > .group-assignment { grid-column: 1; grid-row: 2; }
+.group-prototype-shell .workbench-composer.has-assignment > .composer-action,
+.group-prototype-shell .workbench-composer.has-assignment > .group-composer-attach { grid-column: 2; grid-row: 2; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #52647f; }
+.group-prototype-shell .workbench-composer.has-assignment > button:last-of-type { grid-column: 4; grid-row: 2; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 50%; color: #fff; background: #1a73e8; }
+.group-prototype-shell .workbench-composer.has-assignment > button:last-of-type:disabled { color: #9ca9a5 !important; background: #e8edeb !important; }
+.group-prototype-shell .workbench-composer.has-assignment > button.is-stop { background: #6650a4 !important; }

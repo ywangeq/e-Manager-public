@@ -1,0 +1,219 @@
+.selected-employee-cockpit-rail {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.employee-character-registration {
+  --character-accent: var(--blue);
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--detail-bg);
+}
+
+.employee-character-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 236px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--character-accent) 7%, var(--panel));
+}
+
+.employee-character-stage::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--character-accent);
+  content: "";
+}
+
+.employee-character-stage-label,
+.employee-character-registration-state {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.employee-character-stage-label {
+  top: 12px;
+  left: 14px;
+  color: var(--character-accent);
+}
+
+.employee-character-stage picture {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 236px;
+}
+
+.employee-character-stage img {
+  width: min(88%, 220px);
+  height: 210px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 16px rgba(24, 31, 41, 0.12));
+}
+
+.employee-character-registration-state {
+  right: 12px;
+  bottom: 12px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--character-accent) 24%, transparent);
+  border-radius: 999px;
+  color: var(--character-accent);
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+}
+
+.employee-character-registration-state i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--character-accent);
+}
+
+.employee-character-record {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.employee-character-record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.employee-character-record-head span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.employee-character-record-head small {
+  color: var(--character-accent);
+  font-size: 0.69rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.employee-character-record-head strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.employee-character-record-head > svg {
+  flex: 0 0 auto;
+  color: var(--character-accent);
+}
+
+.employee-character-record > p,
+.employee-character-boundary {
+  margin: 0;
+  color: var(--description);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.employee-character-record dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.employee-character-record dl > div {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.employee-character-record dt,
+.employee-character-record dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.employee-character-record dt {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.employee-character-record dt svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--character-accent);
+}
+
+.employee-character-record dd {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.employee-character-boundary {
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+.employee-character-registration-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 92px;
+  padding: 16px;
+  color: var(--muted);
+}
+
+.employee-character-registration-empty span {
+  display: grid;
+  gap: 4px;
+}
+
+.employee-character-registration-empty strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.employee-character-registration-empty small {
+  color: var(--description);
+  font-size: 0.76rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .employee-character-stage img {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .employee-character-stage,
+  .employee-character-stage picture {
+    min-height: 210px;
+    height: 210px;
+  }
+
+  .employee-character-stage img {
+    height: 186px;
+  }
+}

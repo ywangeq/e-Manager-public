@@ -1,0 +1,16 @@
+.cockpit-sentinel { --sentinel-color: 0,132,155; min-width: 0; position: relative; background: transparent; }
+.cockpit-sentinel-stage { position: relative; display: block; width: 100%; height: 330px; padding: 0; background: transparent; border: 0; color: #657e77; cursor: pointer; }
+.cockpit-sentinel-stage canvas { display: block; width: 100%; height: 100%; }
+.cockpit-sentinel-caption { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 28px; margin-top: -25px; position: relative; font-size: 11px; color: rgb(var(--sentinel-color)); }
+.cockpit-sentinel-caption button { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; background: transparent; color: #6f8780; border-radius: 50%; }
+.cockpit-sentinel-caption button:hover { background: #e8f0ec; }
+.cockpit-sentinel button:focus-visible { outline: 2px solid #008c9c; outline-offset: -3px; }
+@media (min-width: 1250px) { .cockpit-sentinel-stage { height: 360px; } }
+@media (max-width: 760px) { .cockpit-sentinel { width: min(100%, 400px); justify-self: center; } .cockpit-sentinel-stage { height: 310px; } }
+
+.cockpit-sentinel .cockpit-sentinel-stage { -webkit-app-region: no-drag; touch-action: none; user-select: none; }
+.cockpit-sentinel-stage.is-draggable { cursor: grab; }
+.cockpit-sentinel-stage.is-draggable:active { cursor: grabbing; }
+.cockpit-sentinel .cockpit-sentinel-stage:focus:not(:focus-visible) { outline: none; }
+.cockpit-sentinel .cockpit-sentinel-stage:focus-visible { outline: 2px solid #416398; outline-offset: -6px; border-radius: 8px; }
+.cockpit-sentinel .cockpit-sentinel-stage[data-pointer-focus] { outline: none; }

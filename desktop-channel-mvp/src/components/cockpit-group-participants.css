@@ -1,0 +1,23 @@
+.cockpit-group-members { position: relative; flex: 0 0 auto; max-width: 100%; color: var(--cockpit-muted); }
+.cockpit-group-members > button { display: grid; gap: 4px; padding: 4px 0; min-height: 44px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.cockpit-group-members > button:focus-visible { outline: 2px solid var(--cockpit-focus); outline-offset: 3px; border-radius: 8px; }
+.cockpit-group-avatar-stack { display: flex; align-items: center; padding-right: 2px; }
+.cockpit-group-avatar { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border: 2px solid var(--cockpit-paper); border-radius: 50%; background: var(--cockpit-paper); font-size: 11px; color: var(--cockpit-ink); }
+.cockpit-group-avatar + .cockpit-group-avatar { margin-left: -11px; }
+.cockpit-group-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.cockpit-group-avatar.is-more { background: var(--cockpit-selected); }
+.cockpit-group-member-count, .cockpit-group-members-unavailable { font-size: 11px; line-height: 1.4; color: var(--cockpit-muted); }
+.cockpit-group-members-unavailable { max-width: 72px; flex: 0 0 auto; }
+.cockpit-group-member-popover { position: fixed; inset: auto; width: min(240px,calc(100vw - 32px)); box-sizing: border-box; max-height: min(280px,calc(100vh - 32px)); overflow-y: auto; margin: 0; padding: 8px 12px; border: 1px solid var(--cockpit-line); border-radius: 12px; background: var(--cockpit-paper); color: var(--cockpit-muted); box-shadow: var(--cockpit-shadow); }
+.cockpit-group-member-popover > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cockpit-group-member-popover > header > strong { font-size: 12px; }
+.cockpit-group-member-popover > header > button { min-height: 32px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--cockpit-accent); font-size: 12px; }
+.cockpit-group-member-popover ul { margin: 0; padding: 0; list-style: none; }
+.cockpit-group-members li { display: grid; gap: 3px; padding: 8px 0; overflow-wrap: anywhere; }
+.cockpit-group-members li + li { border-top: 1px solid var(--cockpit-line); }
+.cockpit-group-members li strong { font-size: 12px; color: var(--cockpit-ink); }
+.cockpit-group-members li span { font-size: 11px; }
+.cockpit-activity-goal { display: flex; align-items: center; gap: 8px; min-width: 0; padding-left: 12px; }
+.cockpit-activity-goal > .cockpit-activity-row { flex: 1; padding-left: 0; }
+.cockpit-activity-goal .cockpit-group-member-count { max-width: 74px; }
+@media (hover: hover) { .cockpit-group-members > button:hover { background: var(--cockpit-hover); } }

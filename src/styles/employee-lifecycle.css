@@ -1,0 +1,173 @@
+.selected-employee-config-actions .employee-lifecycle-toggle {
+  min-height: 34px;
+  padding-block: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.employee-lifecycle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  position: relative;
+}
+
+.employee-lifecycle-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--description);
+  background: var(--control-bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.employee-lifecycle-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+
+.employee-lifecycle-toggle.is-enabled {
+  border-color: rgba(234, 67, 53, 0.32);
+  color: var(--red);
+  background: rgba(234, 67, 53, 0.06);
+}
+
+.employee-lifecycle-toggle.is-disabled {
+  border-color: rgba(52, 168, 83, 0.34);
+  color: var(--green);
+  background: rgba(52, 168, 83, 0.08);
+}
+
+.employee-lifecycle-toggle:hover,
+.employee-lifecycle-toggle:focus-visible {
+  border-color: currentColor;
+  outline: none;
+}
+
+.employee-lifecycle-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.employee-lifecycle-feedback {
+  max-width: 240px;
+  color: var(--description);
+  font-size: 0.72rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.employee-lifecycle-feedback.is-error {
+  color: var(--red);
+}
+
+.employee-lifecycle-feedback.is-success {
+  color: var(--green);
+}
+
+.employee-production-readiness {
+  position: relative;
+}
+
+.employee-production-readiness summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  list-style: none;
+}
+
+.employee-production-readiness summary small {
+  opacity: 0.72;
+  font-size: 0.68rem;
+}
+
+.employee-production-readiness summary::-webkit-details-marker {
+  display: none;
+}
+
+.employee-production-readiness-list,
+.employee-production-readiness[open] > small {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, 82vw);
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(22, 34, 51, 0.14);
+}
+
+.employee-production-readiness-list {
+  display: grid;
+  gap: 8px;
+}
+
+.employee-production-readiness-list > span {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.employee-production-readiness-list > span:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.employee-production-readiness-list b,
+.employee-production-readiness-list small,
+.employee-production-readiness-list button {
+  font-size: 0.72rem;
+}
+
+.employee-production-readiness-list small {
+  color: var(--description);
+}
+
+.employee-production-readiness-list button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  color: var(--blue);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.employee-production-readiness-list button:hover,
+.employee-production-readiness-list button:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+@media (max-width: 780px) {
+  .employee-lifecycle-control,
+  .employee-lifecycle-toggle {
+    width: 100%;
+  }
+
+  .employee-lifecycle-control {
+    flex-wrap: wrap;
+  }
+
+  .employee-production-readiness,
+  .employee-production-readiness summary {
+    width: 100%;
+  }
+}

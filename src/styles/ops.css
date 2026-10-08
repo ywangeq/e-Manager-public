@@ -1,0 +1,1540 @@
+.ops-monitor {
+  --ops-platform: var(--green);
+}
+
+.ops-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ops-filter-bar .quality-segmented {
+  max-width: 620px;
+}
+
+.ops-filter-bar small,
+.ops-boundary-note,
+.ops-empty-panel p,
+.ops-empty-panel span,
+.ops-privacy-panel span {
+  color: var(--muted);
+}
+
+.ops-boundary-note {
+  margin: 12px 0 0;
+  max-width: 980px;
+}
+
+.ops-command-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.86fr) minmax(0, 1.14fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.ops-health-panel {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: visible;
+  min-height: 316px;
+  border-top: 1px solid var(--line);
+}
+
+.ops-health-panel .panel-head {
+  align-items: flex-start;
+}
+
+.ops-health-panel .panel-head h2 {
+  font-size: 1.26rem;
+  line-height: 1.2;
+}
+
+.ops-health-body {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.ops-health-dial-wrap {
+  position: relative;
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+
+.ops-health-dial-button {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  text-align: center;
+  background: transparent;
+}
+
+.ops-health-dial-button > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.ops-health-dial-button:focus-visible {
+  outline: 2px solid var(--field-focus-border);
+  outline-offset: 5px;
+  border-radius: var(--radius);
+}
+
+.ops-health-dial-button:hover .ops-health-dial,
+.ops-health-dial-button:focus-visible .ops-health-dial {
+  box-shadow: 0 10px 26px rgba(24, 119, 103, 0.16);
+  transform: translateY(-1px);
+}
+
+.ops-health-dial {
+  --ring-color: var(--green);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    conic-gradient(from -90deg, var(--ring-color) var(--score-deg), rgba(122, 143, 136, 0.16) 0),
+    var(--control-bg);
+  transition:
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.ops-health-dial.is-watch {
+  --ring-color: var(--amber);
+}
+
+.ops-health-dial.is-danger {
+  --ring-color: var(--red);
+}
+
+.ops-health-dial div {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  width: 88px;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel-strong);
+}
+
+.ops-health-dial strong {
+  color: var(--ring-color);
+  font-size: 1.56rem;
+  line-height: 1;
+}
+
+.ops-health-dial span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.ops-health-popover {
+  position: absolute;
+  top: -8px;
+  left: calc(100% + 14px);
+  z-index: 40;
+  width: min(340px, calc(100vw - 56px));
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.ops-health-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ops-health-popover-head strong {
+  font-size: 0.96rem;
+}
+
+.ops-health-popover-list {
+  display: grid;
+  gap: 0;
+}
+
+.ops-health-popover-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ops-health-popover-item > span {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.ops-health-popover-item.is-good > span {
+  background: var(--green);
+}
+
+.ops-health-popover-item.is-info > span {
+  background: var(--blue);
+}
+
+.ops-health-popover-item.is-warn > span {
+  background: var(--amber);
+}
+
+.ops-health-popover-item.is-danger > span {
+  background: var(--red);
+}
+
+.ops-health-popover-item div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-health-popover-item strong,
+.ops-health-popover-item small,
+.ops-health-popover-item b,
+.ops-health-popover-foot {
+  overflow-wrap: anywhere;
+}
+
+.ops-health-popover-item strong {
+  font-size: 0.86rem;
+}
+
+.ops-health-popover-item small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.ops-health-popover-item b {
+  color: var(--blue);
+  font-size: 0.73rem;
+}
+
+.ops-health-popover-foot {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.ops-live-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.ops-live-metrics div,
+.ops-resource-item,
+.ops-signal-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.ops-live-metrics div {
+  padding: 10px 12px;
+}
+
+.ops-live-metrics span,
+.ops-signal-card span,
+.ops-resource-item span,
+.ops-queue-row small,
+.ops-alert-row small,
+.ops-alert-row p {
+  color: var(--muted);
+}
+
+.ops-live-metrics strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.12rem;
+  line-height: 1.1;
+}
+
+.ops-health-panel .ops-boundary-note {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.ops-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ops-signal-card {
+  display: grid;
+  gap: 10px;
+  min-height: 132px;
+  padding: 14px;
+  border-top: 3px solid var(--line-strong);
+}
+
+.ops-signal-card.is-good {
+  border-top-color: var(--green);
+}
+
+.ops-signal-card.is-info {
+  border-top-color: var(--blue);
+}
+
+.ops-signal-card.is-warn {
+  border-top-color: var(--amber);
+}
+
+.ops-signal-card.is-danger {
+  border-top-color: var(--red);
+}
+
+.ops-signal-card.is-muted {
+  border-top-color: var(--line-strong);
+}
+
+.ops-signal-card strong {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  font-size: 1.42rem;
+  line-height: 1.1;
+}
+
+.ops-signal-card.is-warn strong,
+.ops-signal-card.is-danger strong {
+  color: var(--red);
+}
+
+.ops-signal-card small {
+  color: var(--text);
+}
+
+.ops-signal-card strong small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.ops-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ops-resource-item {
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  padding: 12px;
+}
+
+.ops-resource-item strong {
+  overflow-wrap: anywhere;
+  font-size: 1.08rem;
+}
+
+.ops-resource-item strong.is-good {
+  color: var(--green);
+}
+
+.ops-resource-item strong.is-info {
+  color: var(--blue);
+}
+
+.ops-resource-item strong.is-warn {
+  color: var(--amber);
+}
+
+.ops-resource-item strong.is-danger {
+  color: var(--red);
+}
+
+.ops-resource-item strong.is-muted {
+  color: var(--muted);
+}
+
+.ops-resource-item small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.ops-trend-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1fr) minmax(0, 1.16fr);
+  gap: 14px;
+}
+
+.ops-queue-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ops-queue-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 0.62fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--row-bg);
+}
+
+.ops-queue-row div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ops-queue-row strong,
+.ops-queue-row small {
+  overflow-wrap: anywhere;
+}
+
+.ops-queue-row b {
+  font-size: 0.84rem;
+}
+
+.ops-queue-meter {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--control-bg);
+}
+
+.ops-queue-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--blue));
+}
+
+.ops-mini-chart {
+  min-width: 0;
+  margin-top: 14px;
+  padding: 10px 12px 8px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.ops-mini-chart svg {
+  display: block;
+  width: 100%;
+  min-width: 360px;
+  height: auto;
+}
+
+.ops-line-path.is-compact {
+  stroke-width: 3;
+}
+
+.ops-pending-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ops-pending-list div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--row-bg);
+}
+
+.ops-pending-list strong,
+.ops-pending-list small {
+  overflow-wrap: anywhere;
+}
+
+.ops-pending-list small {
+  color: var(--muted);
+}
+
+.ops-alert-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ops-alert-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(220px, 0.9fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--row-bg);
+}
+
+.ops-alert-row div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ops-alert-row strong,
+.ops-alert-row small,
+.ops-alert-row p {
+  overflow-wrap: anywhere;
+}
+
+.ops-alert-row p {
+  margin: 0;
+}
+
+.ops-alert-row b {
+  color: var(--amber);
+  font-size: 0.82rem;
+}
+
+.ops-empty-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ops-empty-panel div {
+  display: grid;
+  gap: 6px;
+}
+
+.ops-empty-panel h2,
+.ops-empty-panel p {
+  margin: 0;
+}
+
+.ops-observation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+  gap: 14px;
+}
+
+.ops-sheet-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.ops-sheet-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.ops-incident-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.ops-incident-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.ops-incident-summary span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.ops-incident-summary b {
+  color: var(--text);
+}
+
+.ops-incident-summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.ops-incident-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.ops-incident-filter select {
+  max-width: 180px;
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--control-bg);
+  font: inherit;
+}
+
+.ops-incident-feedback {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--control-bg);
+  font-size: 0.8rem;
+}
+
+.ops-incident-feedback.is-success {
+  border-color: rgba(44, 164, 112, 0.32);
+  color: var(--success);
+}
+
+.ops-incident-feedback.is-error {
+  border-color: rgba(220, 87, 87, 0.36);
+  color: var(--danger);
+}
+
+.ops-archive-head-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ops-archive-head-actions button {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--control-bg);
+  font: inherit;
+  font-size: 0.74rem;
+}
+
+.ops-incident-table th,
+.ops-incident-table td {
+  vertical-align: top;
+}
+
+.ops-incident-copy,
+.ops-incident-actions {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.ops-incident-copy small,
+.ops-incident-copy span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.ops-incident-copy span {
+  color: var(--text);
+}
+
+.ops-incident-actions {
+  grid-template-columns: repeat(2, max-content);
+}
+
+.ops-incident-actions button {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--control-bg);
+  font: inherit;
+  font-size: 0.74rem;
+}
+
+.ops-incident-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.ops-incident-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ops-incident-backfill,
+.ops-diagnosis-form button {
+  padding: 8px 10px;
+  border: 1px solid rgba(54, 126, 255, 0.38);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(54, 126, 255, 0.08);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.ops-diagnosis-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--detail-bg);
+}
+
+.ops-diagnosis-form .panel-head,
+.ops-diagnosis-form > p,
+.ops-diagnosis-form > button {
+  grid-column: 1 / -1;
+}
+
+.ops-diagnosis-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ops-diagnosis-form select,
+.ops-diagnosis-form textarea {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--control-bg);
+  font: inherit;
+}
+
+.ops-diagnosis-form textarea {
+  min-height: 74px;
+  padding: 8px;
+  resize: vertical;
+}
+
+.ops-sheet-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: flex-start;
+  column-gap: 10px;
+  row-gap: 4px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--control-bg);
+  font: inherit;
+  text-align: left;
+}
+
+.ops-sheet-option:hover {
+  border-color: rgba(24, 119, 103, 0.34);
+  background: rgba(24, 119, 103, 0.07);
+}
+
+.ops-sheet-option:focus-visible {
+  outline: 2px solid rgba(85, 226, 168, 0.52);
+  outline-offset: 2px;
+}
+
+.ops-sheet-option.is-active {
+  border-color: rgba(24, 119, 103, 0.52);
+  background: rgba(24, 119, 103, 0.11);
+  box-shadow: inset 0 0 0 1px rgba(24, 119, 103, 0.18);
+}
+
+.ops-sheet-option svg {
+  grid-row: 1 / span 2;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.ops-sheet-option.is-active svg {
+  color: var(--ops-platform);
+}
+
+.ops-sheet-option span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ops-sheet-option strong,
+.ops-sheet-option small,
+.ops-sheet-option b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-sheet-option small,
+.ops-sheet-option b {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.ops-sheet-option b {
+  grid-column: 2;
+}
+
+.ops-sheet-option.is-active b {
+  color: var(--ops-platform);
+}
+
+.ops-sheet-content {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ops-focus-panel,
+.ops-policy-panel {
+  min-height: 360px;
+}
+
+.ops-watch-list,
+.ops-policy-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ops-watch-item,
+.ops-policy-item {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--row-bg);
+}
+
+.ops-watch-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-watch-head div,
+.ops-policy-item > div,
+.ops-table-number {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-watch-head strong,
+.ops-policy-item strong {
+  overflow-wrap: anywhere;
+}
+
+.ops-watch-head small,
+.ops-policy-item small,
+.ops-watch-item p,
+.ops-next-action,
+.ops-task-text,
+.ops-table-number small {
+  color: var(--muted);
+}
+
+.ops-watch-item p {
+  margin: 10px 0 0;
+}
+
+.ops-watch-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ops-watch-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--control-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.ops-next-action {
+  display: block;
+  margin-top: 10px;
+}
+
+.ops-policy-item {
+  display: grid;
+  gap: 12px;
+}
+
+.ops-policy-item dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.ops-policy-item dl div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--control-bg);
+}
+
+.ops-policy-item dt,
+.ops-policy-item dd {
+  margin: 0;
+}
+
+.ops-policy-item dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.ops-policy-item dd {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-weight: 850;
+}
+
+.ops-task-bar {
+  display: flex;
+  width: min(210px, 100%);
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--control-bg);
+}
+
+.ops-task-bar span {
+  min-width: 0;
+}
+
+.ops-task-bar .is-success {
+  background: var(--green);
+}
+
+.ops-task-bar .is-failed {
+  background: var(--red);
+}
+
+.ops-task-bar .is-blocked {
+  background: var(--amber);
+}
+
+.ops-task-text {
+  display: block;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.ops-table-number strong {
+  font-size: 1rem;
+}
+
+.ops-line-chart {
+  min-width: 0;
+  margin-top: 12px;
+  padding: 8px 10px 7px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.ops-line-chart svg {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+  height: auto;
+}
+
+.ops-line-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.ops-line-tick {
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+}
+
+.ops-line-area {
+  fill: rgba(24, 119, 103, 0.12);
+}
+
+.ops-line-path {
+  fill: none;
+  stroke: var(--ops-platform);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ops-line-point circle {
+  fill: var(--panel-strong);
+  stroke: var(--ops-platform);
+  stroke-width: 2.4;
+}
+
+.ops-line-point:hover circle {
+  fill: var(--ops-platform);
+}
+
+.ops-line-axis-label,
+.ops-line-date,
+.ops-line-value {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.ops-line-axis-label {
+  text-anchor: start;
+}
+
+.ops-line-value {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ops-line-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.ops-line-summary span,
+.ops-line-summary b {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-line-summary b {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.ops-line-summary i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--ops-platform);
+}
+
+.ops-system-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ops-system-card {
+  min-height: 220px;
+}
+
+.ops-system-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 0;
+}
+
+.ops-system-stats div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.ops-system-stats dt,
+.ops-system-stats dd {
+  margin: 0;
+}
+
+.ops-system-stats dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ops-system-stats dd {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  font-size: 1.18rem;
+  font-weight: 850;
+}
+
+.ops-privacy-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Runtime-first overview: task authority stays visually ahead of supporting governance data. */
+.ops-monitor-header {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.ops-monitor-context,
+.ops-governance-context-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.ops-monitor-context small,
+.ops-governance-context p,
+.ops-runtime-health small,
+.ops-runtime-usage small {
+  color: var(--muted);
+}
+
+.ops-monitor-header .ops-sheet-options {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.ops-monitor-header .ops-sheet-option {
+  grid-template-columns: auto auto;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.ops-monitor-header .ops-sheet-option small,
+.ops-monitor-header .ops-sheet-option b {
+  display: none;
+}
+
+.ops-runtime-command {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-top: 2px solid var(--green);
+}
+
+.ops-runtime-command.is-watch {
+  border-top-color: var(--amber);
+}
+
+.ops-runtime-command.is-danger {
+  border-top-color: var(--red);
+}
+
+.ops-runtime-command .panel-head,
+.ops-runtime-workbench .panel-head,
+.ops-runtime-secondary .panel-head,
+.ops-performance-grid .panel-head {
+  margin-bottom: 0;
+}
+
+.ops-runtime-command-body {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr) minmax(160px, 0.4fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.ops-runtime-health {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.ops-runtime-health .ops-health-dial {
+  width: 92px;
+}
+
+.ops-runtime-health .ops-health-dial div {
+  width: 72px;
+}
+
+.ops-runtime-health .ops-health-dial strong {
+  font-size: 1.32rem;
+}
+
+.ops-runtime-command.is-danger .ops-health-dial {
+  box-shadow: 0 0 0 6px rgba(201, 49, 83, 0.1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ops-runtime-command .ops-health-dial::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .ops-runtime-command.is-danger .ops-health-dial {
+    animation: ops-health-danger-beat 1.8s ease-in-out infinite;
+  }
+
+  .ops-runtime-command.is-danger .ops-health-dial::after {
+    border-color: rgba(201, 49, 83, 0.46);
+    animation: ops-health-danger-pulse 1.8s ease-out infinite;
+  }
+
+  .ops-runtime-command.is-watch .ops-health-dial::after {
+    border-top-color: rgba(177, 117, 24, 0.72);
+    border-right-color: rgba(177, 117, 24, 0.28);
+    animation: ops-health-watch-scan 2.6s linear infinite;
+  }
+
+  .ops-runtime-command:not(.is-danger):not(.is-watch) .ops-health-dial {
+    animation: ops-health-stable-breathe 3.4s ease-in-out infinite;
+  }
+}
+
+@keyframes ops-health-danger-beat {
+  0%, 100% { transform: scale(1); }
+  18% { transform: scale(1.045); }
+  34% { transform: scale(1); }
+}
+
+@keyframes ops-health-danger-pulse {
+  0% { opacity: 0.74; transform: scale(0.9); }
+  62%, 100% { opacity: 0; transform: scale(1.19); }
+}
+
+@keyframes ops-health-watch-scan {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes ops-health-stable-breathe {
+  50% { box-shadow: 0 0 0 5px rgba(24, 119, 103, 0.08); }
+}
+
+.ops-runtime-health small {
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.ops-runtime-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-left: 1px solid var(--line);
+}
+
+.ops-runtime-metrics div {
+  min-width: 0;
+  padding: 2px 14px;
+  border-right: 1px solid var(--line);
+}
+
+.ops-runtime-metrics dt,
+.ops-runtime-metrics dd {
+  margin: 0;
+}
+
+.ops-runtime-metrics dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.ops-runtime-metrics dd {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ops-performance-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  border-left: 0;
+}
+
+.ops-performance-metrics .ops-metric-card { position: relative; padding: 12px 12px 10px; border: 1px solid var(--line); border-top: 3px solid var(--line-strong); border-radius: 8px; background: var(--control-bg); }
+.ops-metric-card.is-blue { border-top-color: var(--blue); }
+.ops-metric-card.is-good { border-top-color: var(--green); }
+.ops-metric-card.is-warn { border-top-color: var(--amber); }
+.ops-metric-card.is-danger { border-top-color: var(--red); }
+.ops-metric-card.is-muted { border-top-color: var(--line-strong); }
+.ops-performance-metrics .ops-metric-card dd { font-size: 1.18rem; }
+.ops-performance-metrics .ops-metric-card small { display: block; margin-top: 5px; color: var(--muted); font-size: .7rem; }
+
+.ops-runtime-usage {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.ops-runtime-usage span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.ops-runtime-usage strong.is-good {
+  color: var(--green);
+}
+
+.ops-runtime-usage strong.is-danger {
+  color: var(--red);
+}
+
+.ops-runtime-usage strong.is-warn {
+  color: var(--amber);
+}
+
+.ops-runtime-workbench,
+.ops-runtime-secondary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 14px;
+}
+
+.ops-runtime-attention-list,
+.ops-alert-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ops-runtime-attention-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  background: var(--row-bg);
+}
+
+.ops-runtime-attention-row.is-actionable {
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ops-runtime-attention-row.is-actionable:hover {
+  border-color: color-mix(in srgb, var(--amber) 56%, var(--line));
+  box-shadow: 0 7px 18px rgba(177, 117, 24, 0.1);
+  transform: translateY(-1px);
+}
+
+.ops-runtime-attention-row.is-actionable:focus-visible {
+  outline: 2px solid var(--field-focus-border);
+  outline-offset: 2px;
+}
+
+.ops-runtime-attention-row div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ops-runtime-attention-row small,
+.ops-runtime-attention-row p {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.ops-runtime-attention-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.ops-runtime-workbench .ops-alert-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  padding: 10px 12px;
+}
+
+.ops-runtime-workbench .ops-alert-row p {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.ops-runtime-secondary .ops-chart-panel,
+.ops-runtime-secondary .ops-governance-context {
+  min-width: 0;
+}
+
+.ops-performance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.ops-performance-grid > .panel {
+  min-width: 0;
+}
+
+.ops-task-performance-panel .table-wrap {
+  margin-top: 12px;
+}
+
+.ops-task-performance-table {
+  min-width: 980px;
+}
+
+.ops-task-performance-table th,
+.ops-task-performance-table td {
+  vertical-align: top;
+}
+
+.ops-task-performance-outcomes,
+.ops-task-performance-metrics {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.ops-task-performance-outcomes span,
+.ops-task-performance-metrics span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.ops-task-performance-outcomes .ops-outcome { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.ops-outcome i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.ops-outcome.is-success i { background: var(--green); }
+.ops-outcome.is-failed i { background: var(--red); }
+.ops-outcome.is-blocked i { background: var(--amber); }
+.ops-outcome b { color: var(--text); }
+
+.ops-task-performance-metrics b {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.ops-duration.is-good { color: var(--green); font-weight: 700; }
+.ops-duration.is-warn { color: var(--amber); font-weight: 700; }
+.ops-duration.is-danger { color: var(--red); font-weight: 800; }
+.ops-duration.is-muted { color: var(--muted); }
+
+.ops-governance-context-metrics {
+  margin-top: 12px;
+}
+
+.ops-governance-context-metrics span {
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--control-bg);
+  font-size: 0.78rem;
+}
+
+.ops-governance-context-metrics b {
+  color: var(--text);
+}
+
+.ops-governance-context p {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 980px) {
+  .ops-runtime-command-body,
+  .ops-runtime-workbench,
+  .ops-runtime-secondary,
+  .ops-performance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-runtime-command-body {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .ops-runtime-usage {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .ops-runtime-command-body,
+  .ops-runtime-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-runtime-health {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .ops-runtime-metrics {
+    border-left: 0;
+  }
+
+  .ops-runtime-metrics div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}

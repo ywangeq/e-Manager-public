@@ -1,0 +1,6 @@
+{
+  "contractVersion": "digital-workforce-skill-package.v1",
+  "skillApiId": "example-text-summary",
+  "sourceSkillId": "example-text-summary",
+  "version": "1.0.0"
+}
