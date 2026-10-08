@@ -1,0 +1,29 @@
+Digital Workforce Noncommercial Source License 1.0
+数字员工管理系统非商业源码许可证 1.0
+
+Copyright (c) 2026 王远 / WANG YUAN. All rights reserved.
+版权所有 (c) 2026 王远 / WANG YUAN。保留所有权利。
+
+1. Scope / 适用范围
+This license applies only to original project code and documentation owned by the copyright holder. Third-party dependencies and incorporated third-party materials remain subject to their respective licenses. This license does not replace or remove their notices or obligations.
+本许可证仅适用于版权主体拥有的本项目原创代码和文档。第三方依赖及引入的第三方材料仍适用各自许可证，不得删除其声明或免除其许可义务。
+
+2. Noncommercial permission / 非商业许可
+You may view, copy, study, modify, and use the covered materials without payment solely for noncommercial purposes. You may share copies and modifications solely for noncommercial purposes, provided that this license and copyright notices are retained, modifications are identified, and recipients receive the covered materials under this same license. No ownership of the covered materials is transferred.
+允许免费查看、复制、学习、修改及用于非商业目的。允许以非商业目的分享副本或修改版本，但必须保留本许可证及版权声明，标明修改，并使接收者按本许可证获得受保护材料。上述许可不转移受保护材料的所有权。
+
+3. Commercial authorization / 商业授权
+Commercial use requires prior, separate written authorization from 王远 / WANG YUAN. Commercial use includes deployment or operation in a business's production environment (including internal business operations), sale or paid distribution, paid hosting or SaaS, paid integration or consulting based on the covered materials, and use in products or services intended to generate commercial revenue. Public availability, downloading, forking, or modifying the source does not grant commercial authorization.
+商业使用必须事先取得王远 / WANG YUAN 单独出具的书面授权。商业使用包括企业生产环境部署或运行（包括内部业务运营）、销售或收费分发、收费托管或 SaaS、基于受保护材料的收费集成或咨询，以及用于旨在产生商业收入的产品或服务。源码公开、下载、Fork 或修改均不构成商业授权。
+
+4. Notices and other rights / 声明及其他权利
+Do not remove or misrepresent the copyright notices or claim that the original copyright holder endorses your modifications. No trademark rights are granted. Rights not expressly granted are reserved. Any separate written commercial license governs commercial use according to its own terms.
+不得删除或歪曲版权声明，也不得声称原版权主体为修改版本背书。本许可证不授予商标权。未明确授予的权利予以保留。另行签署的书面商业许可按其自身条款约定商业使用。
+
+5. Disclaimer / 免责声明
+To the extent permitted by applicable law, the covered materials are provided AS IS, without warranties, including warranties of merchantability, fitness for a particular purpose, and noninfringement. To the extent permitted by applicable law, the copyright holder is not liable for damages arising from use of the covered materials.
+在适用法律允许的范围内，受保护材料按现状提供，不提供包括适销性、特定用途适用性及不侵权在内的保证。在适用法律允许的范围内，版权主体不承担因使用受保护材料而产生的损害赔偿责任。
+
+6. License characterization / 许可性质
+This is a source-available license with commercial-use restrictions, not an OSI-approved open-source license. If the two language versions differ, the Chinese text governs.
+本许可证是限制商业使用的源码公开许可证，不是 OSI 认可的开源许可证。中英文表述不一致时，以中文为准。

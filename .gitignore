@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+private/
+publication-assets/
+media/
+.DS_Store
