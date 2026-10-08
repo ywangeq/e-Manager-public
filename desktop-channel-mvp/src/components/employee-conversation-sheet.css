@@ -1,0 +1,20 @@
+.employee-conversation-sheet {
+  width: min(780px, calc(100vw - 40px));
+  height: min(850px, calc(100vh - 40px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: 24px;
+  color: #28354b;
+  background: #edf2f8;
+  box-shadow: 0 24px 80px rgba(35, 52, 79, .2);
+}
+.employee-conversation-sheet::backdrop { background: rgba(36, 49, 70, .18); backdrop-filter: blur(4px); }
+.employee-conversation-sheet > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(72, 89, 116, .12); }
+.employee-conversation-sheet > header button { display: flex; align-items: center; gap: 6px; min-height: 36px; border: 0; border-radius: 10px; padding: 6px 10px; color: inherit; background: rgba(255, 255, 255, .65); cursor: pointer; }
+.employee-conversation-sheet > header span { font-size: 12px; color: #566780; }
+.employee-conversation-body { display: flex; flex-direction: column; height: calc(100% - 69px); min-height: 0; padding: 12px 20px 20px; position: relative; }
+.employee-conversation-body .chat-workspace { flex: 1; min-height: 0; }
+.employee-conversation-body .message-list { flex: 1; min-height: 0; overflow-y: auto; }
+@media (max-width: 600px) { .employee-conversation-sheet { width: calc(100vw - 16px); height: calc(100vh - 16px); border-radius: 16px; } .employee-conversation-body { padding: 8px 12px 12px; } }

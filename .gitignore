@@ -7,3 +7,10 @@ private/
 publication-assets/
 media/
 .DS_Store
+
+data/
+*.log
+desktop-channel-mvp/release/
+desktop-channel-mvp/native/**/target/
+
+__pycache__/

@@ -1,0 +1,218 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HR Train Governed Operations API",
+    "version": "2026.09.18-02"
+  },
+  "paths": {
+    "/api/v1/operations/evaluation-retries/candidates": {
+      "get": {
+        "operationId": "evaluation_retries.candidates.list",
+        "summary": "查询HR Train指定上海自然日当前仍失败的评估；分页重用snapshotAt与nextCursor",
+        "x-digital-workforce": {
+          "action": "read_evaluation_failures",
+          "capabilities": [
+            "training_operations"
+          ],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": [
+            "training_operations:read"
+          ],
+          "writebackBoundary": "none"
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          {
+            "name": "timeZone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Asia/Shanghai"
+              ]
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "snapshotAt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HR-owned candidate references, snapshotAt and nextCursor; no transcript, scores or personal information."
+          }
+        }
+      }
+    },
+    "/api/v1/operations/evaluation-retries": {
+      "post": {
+        "operationId": "evaluation_retries.create",
+        "summary": "按原失败run幂等重新触发；TRIGGER_SUBMITTED只代表排队，未知结果复用原键核对，不换键重发",
+        "x-digital-workforce": {
+          "action": "retrigger_evaluation",
+          "capabilities": [
+            "training_operations"
+          ],
+          "risk": "controlled_write",
+          "confirmationPolicy": "operation_allowlist",
+          "scope": [
+            "training_operations:retrigger"
+          ],
+          "writebackBoundary": "hr_training_evaluation_retrigger"
+        },
+        "parameters": [
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sessionId",
+                  "meetingRecordId",
+                  "runId",
+                  "capability"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "meetingRecordId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "runId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "capability": {
+                    "type": "string",
+                    "enum": [
+                      "hr_training.content_evaluate.v1",
+                      "hr_training.followup_round_evaluate.v1",
+                      "hr_training.aggregate_feedback.v1"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Persisted operation and delivery state, not evaluation completion."
+          },
+          "202": {
+            "description": "PROCESSING or DELIVERY_UNKNOWN; do not change the idempotency key."
+          },
+          "409": {
+            "description": "Idempotency key conflicts with the supplied arguments."
+          }
+        }
+      }
+    },
+    "/api/v1/operations/evaluation-retries/{operationId}": {
+      "get": {
+        "operationId": "evaluation_retries.get",
+        "summary": "回读已有运维操作状态；送达未知不换键重新触发",
+        "x-digital-workforce": {
+          "action": "read_evaluation_failures",
+          "capabilities": [
+            "training_operations"
+          ],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": [
+            "training_operations:read"
+          ],
+          "writebackBoundary": "none"
+        },
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted operation delivery state; submission is not evaluation completion."
+          },
+          "404": {
+            "description": "Operation not found; do not invent a replacement idempotency key."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "hrTrainApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-HR-Train-API-Key",
+        "description": "Existing HR Train API key with explicitly granted operations_evaluation_retry scope. Ordinary keys are forbidden; credentials are injected by Center only."
+      }
+    }
+  },
+  "security": [
+    {
+      "hrTrainApiKey": []
+    }
+  ]
+}

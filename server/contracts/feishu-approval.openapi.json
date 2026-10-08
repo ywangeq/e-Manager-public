@@ -1,0 +1,173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Feishu Approval Governed API",
+    "version": "2026.08.18"
+  },
+  "paths": {
+    "/open-apis/approval/v4/approvals/{approvalCode}": {
+      "get": {
+        "operationId": "approval.definitions.get",
+        "summary": "读取一份已审核 IT 审批定义的实时表单",
+        "parameters": [
+          {
+            "name": "approvalCode",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "审批类型", "description": "由已审核模板引用在服务端解析，用户无需填写审批 Code。", "minLength": 1, "maxLength": 80, "x-agent-managed": true }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "const": "zh-CN" }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "read_approval_definition",
+          "capabilities": ["it_approval_submission"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["reviewed_it_approval_definitions"],
+          "writebackBoundary": "none"
+        },
+        "responses": { "200": { "description": "审批定义、实时表单和流程节点" } }
+      }
+    },
+    "/open-apis/approval/v4/instances/preview": {
+      "post": {
+        "operationId": "approval.instances.preview",
+        "summary": "预览当前员工的一条 IT 审批流程",
+        "parameters": [
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "const": "open_id" }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "preview_approval_instance",
+          "capabilities": ["it_approval_submission"],
+          "risk": "read_only",
+          "sideEffectFree": true,
+          "confirmationPolicy": "not_required",
+          "scope": ["current_user", "reviewed_it_approval_definitions"],
+          "writebackBoundary": "none"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approval_code": { "type": "string", "title": "审批类型", "minLength": 1, "maxLength": 80, "x-agent-managed": true },
+                  "user_id": { "type": "string", "title": "当前申请人", "pattern": "^ou_[A-Za-z0-9_-]{8,200}$", "x-agent-managed": true },
+                  "form": { "type": "string", "title": "实时表单", "minLength": 2, "maxLength": 200000, "x-agent-managed": true },
+                  "node_approver_open_id_list": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "minLength": 1, "maxLength": 160 },
+                        "value": {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 20,
+                          "uniqueItems": true,
+                          "items": { "type": "string", "pattern": "^ou_[A-Za-z0-9_-]{8,200}$" }
+                        }
+                      },
+                      "required": ["key", "value"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["approval_code", "user_id", "form"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "预览结果；业务错误码由 Agent 按审核规则判定" } }
+      }
+    },
+    "/open-apis/approval/v4/instances": {
+      "post": {
+        "operationId": "approval.instances.create",
+        "summary": "为当前员工创建唯一一条已确认 IT 审批",
+        "x-digital-workforce": {
+          "action": "create_approval_instance",
+          "capabilities": ["it_approval_submission"],
+          "risk": "high_impact_write",
+          "confirmationPolicy": "explicit_per_call",
+          "scope": ["current_user", "reviewed_it_approval_definitions", "exact_confirmed_arguments"],
+          "writebackBoundary": "仅允许本轮精确确认参数的一次 Create；必须携带 Feishu uuid 幂等键并产生 operation receipt"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approval_code": { "type": "string", "title": "审批类型", "minLength": 1, "maxLength": 80, "x-agent-managed": true },
+                  "open_id": { "type": "string", "title": "当前申请人", "pattern": "^ou_[A-Za-z0-9_-]{8,200}$", "x-agent-managed": true },
+                  "form": { "type": "string", "title": "精确确认的实时表单", "minLength": 2, "maxLength": 200000, "x-agent-managed": true },
+                  "uuid": { "type": "string", "title": "幂等键", "minLength": 16, "maxLength": 64, "pattern": "^[A-Za-z0-9-]+$", "x-agent-managed": true },
+                  "node_approver_open_id_list": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "minLength": 1, "maxLength": 160 },
+                        "value": {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 20,
+                          "uniqueItems": true,
+                          "items": { "type": "string", "pattern": "^ou_[A-Za-z0-9_-]{8,200}$" }
+                        }
+                      },
+                      "required": ["key", "value"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["approval_code", "open_id", "form", "uuid"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "创建结果，必须包含 instance_code" } }
+      }
+    },
+    "/open-apis/approval/v4/instances/{instanceCode}": {
+      "get": {
+        "operationId": "approval.instances.get",
+        "summary": "回读本轮创建的 IT 审批实例",
+        "parameters": [
+          {
+            "name": "instanceCode",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 16, "maxLength": 120, "x-agent-managed": true }
+          }
+        ],
+        "x-digital-workforce": {
+          "action": "read_created_approval_instance",
+          "capabilities": ["it_approval_submission"],
+          "risk": "read_only",
+          "confirmationPolicy": "not_required",
+          "scope": ["created_instance_receipt"],
+          "writebackBoundary": "none"
+        },
+        "responses": { "200": { "description": "实例状态、单号和最终表单内容" } }
+      }
+    }
+  }
+}

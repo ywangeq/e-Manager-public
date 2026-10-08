@@ -1,0 +1,18 @@
+.trigger-management-workbench { min-width: 0; }
+.trigger-management-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 10px; }
+.trigger-management-toolbar input { width: min(260px, 35vw); min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--control-bg); }
+.trigger-management-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: var(--row-bg); }
+.trigger-management-tabs button { min-height: 30px; padding: 0 11px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; font: inherit; font-size: .78rem; font-weight: 800; }
+.trigger-management-tabs button.is-active { color: var(--blue); background: var(--panel); box-shadow: 0 1px 3px rgba(20, 34, 54, .08); }
+.trigger-management-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.trigger-management-table { width: 100%; min-width: 920px; border-collapse: collapse; font-size: .8rem; }
+.trigger-management-table th { padding: 9px 11px; color: var(--muted); background: var(--row-bg); text-align: left; font-size: .72rem; white-space: nowrap; }
+.trigger-management-table td { padding: 11px; border-top: 1px solid var(--line); color: var(--text); vertical-align: middle; overflow-wrap: anywhere; }
+.trigger-management-table a { color: var(--accent); font-weight: 650; text-decoration: none; }
+.trigger-management-table a:hover { text-decoration: underline; }
+.trigger-management-table td strong, .trigger-management-table td small { display: block; }
+.trigger-management-table td small { margin-top: 3px; color: var(--description); font-size: .7rem; line-height: 1.4; }
+.trigger-management-muted { color: var(--description); font-size: .74rem; }
+.trigger-management-empty { display: inline-flex; align-items: center; gap: 7px; padding: 18px 10px; color: var(--description); font-size: .82rem; }
+.trigger-management-empty.is-error { color: var(--red); }
+@media (max-width: 760px) { .trigger-management-toolbar { align-items: stretch; flex-direction: column; } .trigger-management-toolbar input { width: 100%; } }

@@ -1,0 +1,180 @@
+.metric-card,
+.panel,
+.entity-row,
+.department-card,
+.governance-owner-card,
+.worker-card,
+.org-tree-node-main,
+.identity-grid > div,
+.loop-step,
+.governance-root,
+.governance-layer,
+.skill-draft-panel,
+.detail-grid > div,
+.governance-block {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--card-line, var(--line));
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 72%),
+    var(--card-bg, var(--row-bg));
+  box-shadow: var(--card-shadow, 0 12px 34px rgba(0, 0, 0, 0.16));
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.metric-card::before,
+.panel::before,
+.entity-row::before,
+.department-card::before,
+.governance-owner-card::before,
+.worker-card::before,
+.org-tree-node-main::before,
+.identity-grid > div::before,
+.loop-step::before,
+.governance-root::before,
+.governance-layer::before,
+.skill-draft-panel::before,
+.detail-grid > div::before,
+.governance-block::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(
+      180px circle at var(--card-x, 50%) var(--card-y, 50%),
+      rgba(85, 226, 168, 0.18),
+      rgba(110, 168, 255, 0.08) 38%,
+      transparent 72%
+    );
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.metric-card > *,
+.panel > *,
+.entity-row > *,
+.department-card > *,
+.governance-owner-card > *,
+.worker-card > *,
+.org-tree-node-main > *,
+.identity-grid > div > *,
+.loop-step > *,
+.governance-root > *,
+.governance-layer > *,
+.skill-draft-panel > *,
+.detail-grid > div > *,
+.governance-block > * {
+  position: relative;
+  z-index: 1;
+}
+
+.metric-card.is-spotlighted::before,
+.panel.is-spotlighted::before,
+.entity-row.is-spotlighted::before,
+.department-card.is-spotlighted::before,
+.governance-owner-card.is-spotlighted::before,
+.worker-card.is-spotlighted::before,
+.org-tree-node-main.is-spotlighted::before,
+.identity-grid > div.is-spotlighted::before,
+.loop-step.is-spotlighted::before,
+.governance-root.is-spotlighted::before,
+.governance-layer.is-spotlighted::before,
+.skill-draft-panel.is-spotlighted::before,
+.detail-grid > div.is-spotlighted::before,
+.governance-block.is-spotlighted::before {
+  opacity: 1;
+}
+
+.metric-card.is-interactive:hover,
+.metric-card.is-interactive:focus-visible,
+.entity-row:hover,
+.entity-row.is-open,
+.org-tree-node-main:hover,
+.org-tree-node-main:focus-visible {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
+}
+
+.metric-card.is-interactive:hover,
+.metric-card.is-interactive:focus-visible {
+  transform: translateY(-2px);
+}
+
+.metric-card.is-interactive:active {
+  transform: translateY(0);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+}
+
+.console-shell[data-theme="light"] .metric-card,
+.console-shell[data-theme="light"] .panel,
+.console-shell[data-theme="light"] .entity-row,
+.console-shell[data-theme="light"] .department-card,
+.console-shell[data-theme="light"] .governance-owner-card,
+.console-shell[data-theme="light"] .worker-card,
+.console-shell[data-theme="light"] .org-tree-node-main,
+.console-shell[data-theme="light"] .identity-grid > div,
+.console-shell[data-theme="light"] .loop-step,
+.console-shell[data-theme="light"] .governance-root,
+.console-shell[data-theme="light"] .governance-layer,
+.console-shell[data-theme="light"] .skill-draft-panel,
+.console-shell[data-theme="light"] .detail-grid > div,
+.console-shell[data-theme="light"] .governance-block {
+  box-shadow: var(--card-shadow, var(--shadow));
+}
+
+.console-shell .workspace > .panel,
+.console-shell .workspace > .view-stack > .panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.console-shell .workspace > .panel::before,
+.console-shell .workspace > .view-stack > .panel::before {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card,
+  .panel,
+  .entity-row,
+  .department-card,
+  .governance-owner-card,
+  .worker-card,
+  .org-tree-node-main,
+  .identity-grid > div,
+  .loop-step,
+  .governance-root,
+  .governance-layer,
+  .skill-draft-panel,
+  .detail-grid > div,
+  .governance-block {
+    transition: none;
+  }
+
+  .metric-card::before,
+  .panel::before,
+  .entity-row::before,
+  .department-card::before,
+  .governance-owner-card::before,
+  .worker-card::before,
+  .org-tree-node-main::before,
+  .identity-grid > div::before,
+  .loop-step::before,
+  .governance-root::before,
+  .governance-layer::before,
+  .skill-draft-panel::before,
+  .detail-grid > div::before,
+  .governance-block::before {
+    display: none;
+  }
+}

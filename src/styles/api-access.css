@@ -1,0 +1,410 @@
+.entity-row.has-row-actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.entity-row.has-row-actions .entity-row-toggle {
+  min-width: 0;
+}
+
+.entity-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(640px, 52vw);
+  padding: 13px 52px 13px 0;
+}
+
+.entity-row.has-row-actions .entity-details {
+  grid-column: 1 / -1;
+}
+
+.entity-row-action {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.entity-row-action:disabled {
+  cursor: not-allowed;
+  color: var(--subtle);
+  opacity: 0.58;
+}
+
+.entity-row-feishu-action {
+  border-color: rgba(50, 160, 110, 0.3);
+  color: var(--green);
+  background: rgba(50, 160, 110, 0.1);
+}
+
+.entity-row-feishu-action:hover,
+.entity-row-feishu-action:focus-visible {
+  border-color: rgba(50, 160, 110, 0.58);
+  background: rgba(50, 160, 110, 0.16);
+  outline: none;
+}
+
+.entity-row-feishu-action:disabled,
+.entity-row-feishu-action:disabled:hover,
+.entity-row-feishu-action:disabled:focus-visible {
+  border-color: var(--line);
+  color: var(--subtle);
+  background: var(--control-bg);
+  outline: none;
+}
+
+.entity-row-edit-action {
+  border-color: rgba(85, 226, 168, 0.36);
+  color: var(--green);
+  background: rgba(85, 226, 168, 0.1);
+}
+
+.entity-row-edit-action:hover:not(:disabled),
+.entity-row-edit-action:focus-visible {
+  border-color: rgba(85, 226, 168, 0.72);
+  background: rgba(85, 226, 168, 0.16);
+  outline: none;
+}
+
+.employee-approval-action {
+  border-color: rgba(255, 209, 102, 0.44);
+  color: #ffe8ac;
+  background: rgba(255, 209, 102, 0.12);
+}
+
+.employee-approval-action:hover,
+.employee-approval-action:focus-visible {
+  border-color: rgba(255, 209, 102, 0.72);
+  background: rgba(255, 209, 102, 0.18);
+  outline: none;
+}
+
+.console-shell[data-theme="light"] .employee-approval-action {
+  color: #7b4b00;
+}
+
+.api-access-panel,
+.capability-intake {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(110, 168, 255, 0.24);
+  border-radius: var(--radius);
+  background: rgba(110, 168, 255, 0.08);
+}
+
+.api-access-panel.is-collapsed {
+  gap: 0;
+  background: rgba(110, 168, 255, 0.05);
+}
+
+.api-access-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.api-access-toggle {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.api-access-toggle:hover,
+.api-access-toggle:focus-visible {
+  outline: none;
+}
+
+.api-access-toggle:hover .api-access-toggle-label,
+.api-access-toggle:focus-visible .api-access-toggle-label {
+  border-color: rgba(110, 168, 255, 0.42);
+  color: var(--blue);
+  background: rgba(110, 168, 255, 0.1);
+}
+
+.api-access-head strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.api-access-head p,
+.api-access-grid span {
+  margin: 4px 0 0;
+  color: var(--description);
+}
+
+.api-access-head-actions,
+.api-access-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.api-access-head-actions {
+  flex-wrap: wrap;
+}
+
+.api-access-toggle-label {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--description);
+  background: var(--control-bg);
+  font-size: 0.76rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.api-access-toggle-label svg {
+  transition: transform 0.18s ease;
+}
+
+.api-access-panel.is-open .api-access-toggle-label svg {
+  transform: rotate(180deg);
+}
+
+.api-access-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.api-access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.api-access-grid > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--detail-bg);
+}
+
+.api-access-grid pre {
+  max-width: 100%;
+  min-height: 220px;
+  max-height: 360px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid rgba(85, 226, 168, 0.18);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: rgba(5, 12, 18, 0.46);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.console-shell[data-theme="light"] .api-access-grid pre {
+  background: rgba(244, 249, 246, 0.96);
+}
+
+.api-access-grid code {
+  white-space: pre;
+}
+
+.capability-intake {
+  padding: 10px 12px;
+  background: rgba(85, 226, 168, 0.06);
+}
+
+.skill-upload-form {
+  padding: 12px;
+  border: 1px solid rgba(37, 64, 56, 0.14);
+  border-radius: var(--radius);
+  color: #14211d;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(36, 53, 47, 0.08);
+}
+
+.skill-upload-form label {
+  color: #52665f;
+}
+
+.skill-upload-form input,
+.skill-upload-form select,
+.skill-upload-form textarea {
+  color: var(--field-text);
+  border-color: rgba(37, 64, 56, 0.18);
+  background: var(--field-bg);
+}
+
+.skill-upload-form input::placeholder,
+.skill-upload-form textarea::placeholder {
+  color: var(--field-placeholder);
+}
+
+.skill-upload-form input:focus,
+.skill-upload-form select:focus,
+.skill-upload-form textarea:focus {
+  border-color: var(--field-focus-border);
+  box-shadow: 0 0 0 3px var(--field-focus-ring);
+}
+
+.skill-upload-guidance {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(44, 104, 184, 0.16);
+  border-radius: var(--radius);
+  background: #f6faf8;
+}
+
+.skill-upload-guidance strong,
+.skill-upload-guidance p {
+  overflow-wrap: anywhere;
+}
+
+.skill-upload-guidance p {
+  margin: 0;
+  color: #51645d;
+  font-size: 0.84rem;
+}
+
+.capability-intake-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.capability-intake-bar > div {
+  min-width: 0;
+}
+
+.capability-intake-bar strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.capability-intake-bar p {
+  margin: 3px 0 0;
+  color: var(--description);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.capability-intake:not(.is-open) .capability-intake-bar p {
+  display: none;
+}
+
+.capability-intake-bar .ghost-action {
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
+.employee-section-tooling {
+  padding: 0 20px 12px;
+}
+
+.skill-upload-form input[type="file"] {
+  min-height: 38px;
+  padding: 7px;
+}
+
+.skill-upload-form .checkbox-label {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  color: #22352f;
+}
+
+.skill-upload-form .checkbox-label input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.skill-upload-form .skill-draft-actions {
+  color: #5e716a;
+}
+
+.error-note {
+  color: var(--red);
+}
+
+@media (max-width: 980px) {
+  .api-access-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1080px) {
+  .entity-row.has-row-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .entity-row.has-row-actions .entity-row-toggle {
+    padding-right: 14px;
+    padding-bottom: 14px;
+  }
+
+  .entity-row-actions {
+    grid-column: 1;
+    max-width: none;
+    flex-wrap: wrap;
+    padding: 0 14px 14px 60px;
+  }
+
+  .entity-row-action {
+    min-height: 34px;
+  }
+}
+
+@media (max-width: 780px) {
+
+  .evaluation-row-actions .entity-row-action {
+    min-width: 104px;
+  }
+
+  .api-access-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .api-access-head-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .api-access-head > .status-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .capability-intake-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .capability-intake-bar .ghost-action {
+    width: 100%;
+  }
+
+  .employee-section-tooling {
+    padding: 0 16px 12px;
+  }
+}

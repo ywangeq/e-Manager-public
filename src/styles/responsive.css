@@ -1,0 +1,519 @@
+@media (max-width: 1120px) {
+  .portal {
+    min-height: auto;
+    padding: 48px 24px 32px;
+  }
+
+  .login-panel {
+    max-width: 460px;
+  }
+
+  .portal-copy,
+  .login-panel {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    width: 100%;
+    transform: none;
+  }
+
+  .portal-copy {
+    max-width: 760px;
+    margin-top: 220px;
+  }
+
+  .login-panel {
+    margin-top: 28px;
+  }
+
+  .portal-pillar {
+    inset: 0 0 auto;
+    height: 520px;
+  }
+
+  .portal-pillar.light-pillar-container,
+  .portal-pillar.light-pillar-fallback,
+  .portal-pillar.faulty-terminal-container {
+    height: 520px;
+  }
+
+  .portal-pillar.faulty-terminal-container {
+    inset: 0;
+    height: auto;
+  }
+
+  .metrics-grid,
+  .demo-capability-grid,
+  .architecture-layer-grid,
+  .department-grid,
+  .governance-owner-grid,
+  .skill-domain-metrics,
+  .people-flow-grid,
+  .people-add-steps,
+  .skill-intake-steps,
+  .identity-grid,
+  .ops-command-grid,
+  .ops-signal-grid,
+  .ops-trend-grid,
+  .ops-system-grid,
+  .ops-observation-grid,
+  .ops-sheet-options,
+  .evaluation-ops-layout,
+  .quality-source-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loop-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .loop-step:nth-child(4),
+  .loop-step:nth-child(5),
+  .loop-step:nth-child(6) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .loop-step:not(:last-child)::after {
+    top: auto;
+    right: auto;
+    bottom: -11px;
+    left: 28px;
+    width: 18px;
+    height: 18px;
+    display: block;
+    transform: rotate(135deg);
+  }
+
+  .quality-source-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-ops-layout,
+  .evaluation-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .quality-source-controls {
+    justify-content: flex-start;
+  }
+
+  .governance-structure {
+    grid-template-columns: 1fr;
+  }
+
+  .import-auto-summary,
+  .import-summary-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-section-head {
+    grid-template-columns: 1fr auto;
+  }
+
+  .employee-product-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-product-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-skill-mount-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-skill-inline-hint {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .skill-draft-form,
+  .model-binding-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .model-binding-actions {
+    grid-column: 1 / -1;
+  }
+
+  .employee-section-preview,
+  .employee-section-head > .status-pill {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 780px) {
+  body:has(.employee-tool-catalog-panel) .enterprise-assistant-toggle {
+    display: none;
+  }
+
+  .portal {
+    padding: 34px 18px 26px;
+  }
+
+  .portal-pillar {
+    inset: 0 0 auto;
+    height: 430px;
+    opacity: 0.88;
+  }
+
+  .portal-pillar.light-pillar-container,
+  .portal-pillar.light-pillar-fallback,
+  .portal-pillar.faulty-terminal-container {
+    height: 430px;
+  }
+
+  .portal-pillar.faulty-terminal-container {
+    inset: 0;
+    height: auto;
+  }
+
+  .portal-copy {
+    margin-top: 164px;
+  }
+
+  .portal-copy h1 {
+    max-width: 360px;
+    font-size: clamp(2.7rem, 14vw, 3.8rem);
+    line-height: 0.94;
+  }
+
+  .portal-subtitle {
+    font-size: 1rem;
+  }
+
+  .console-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .sidebar nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-group {
+    grid-column: 1 / -1;
+  }
+
+  .nav-submenu {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-left: 0;
+  }
+
+  .workspace {
+    padding: 18px;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px 42px;
+  }
+
+  .search-box {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .metrics-grid,
+  .demo-capability-grid,
+  .architecture-layer-grid,
+  .department-grid,
+  .governance-owner-grid,
+  .skill-domain-metrics,
+  .loop-flow,
+  .people-flow-grid,
+  .people-add-steps,
+  .skill-intake-steps,
+  .identity-grid,
+  .ops-command-grid,
+  .ops-signal-grid,
+  .ops-resource-grid,
+  .ops-trend-grid,
+  .ops-system-grid,
+  .ops-observation-grid,
+  .evaluation-ops-layout,
+  .evaluation-flow,
+  .quality-source-panel,
+  .detail-grid,
+  .handshake-checklist {
+    grid-template-columns: 1fr;
+  }
+
+  .import-auto-summary dl {
+    grid-template-columns: 1fr;
+  }
+
+  .architecture-demo-boundary {
+    grid-template-columns: 1fr;
+  }
+
+  .quality-source-controls,
+  .ops-filter-bar,
+  .employee-skill-toolbar,
+  .quality-segmented,
+  .quality-subsystem-select {
+    width: 100%;
+  }
+
+  .ops-filter-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-monitor > .panel:first-child .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ops-sheet-options {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-diagnosis-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-health-body,
+  .ops-alert-row,
+  .ops-queue-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-live-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-health-dial {
+    width: 108px;
+  }
+
+  .quality-segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .review-panel-tools,
+  .review-queue-toolbar,
+  .review-refresh-button {
+    width: 100%;
+  }
+
+  .review-queue-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evaluation-run-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .evaluation-run-head span {
+    grid-column: 1 / -1;
+  }
+
+  .loop-return {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ops-line-chart {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .ops-line-chart svg {
+    min-width: 430px;
+  }
+
+  .ops-health-popover {
+    top: calc(100% + 10px);
+    left: 0;
+    width: min(320px, calc(100vw - 48px));
+  }
+
+  .ops-system-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-policy-item dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-watch-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .identity-banner-strong,
+  .governance-layers {
+    grid-template-columns: 1fr;
+  }
+
+  .entity-row-toggle {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .worker-card-head {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .worker-card-head > .worker-summary {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .worker-card-head > .status-pill {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .worker-card-head > .entity-cue {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .entity-row-toggle > .entity-cue {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .entity-title-line {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .business-system-section-head,
+  .business-system-item-head,
+  .approval-action-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .business-system-section-head > .status-pill,
+  .business-system-section-head > .entity-cue,
+  .business-system-item-head > .status-pill,
+  .business-system-item-head > .entity-cue {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .approval-action-head {
+    display: grid;
+  }
+
+  .approval-action-buttons .table-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .entity-details {
+    padding-left: 14px;
+  }
+
+  .employee-section-head {
+    padding: 16px;
+  }
+
+  .skill-draft-head,
+  .skill-intake-head,
+  .skill-domain-admin-head,
+  .skill-domain-move-form,
+  .skill-domain-archive-form,
+  .business-skill-hierarchy-head,
+  .business-skill-group-head,
+  .business-skill-group-toggle,
+  .skill-draft-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skill-domain-move-form,
+  .skill-domain-archive-form {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .business-skill-hierarchy-toggle,
+  .business-skill-line-edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .business-skill-line-edit-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .skill-draft-form,
+  .model-binding-form,
+  .employee-product-cards,
+  .employee-product-panels,
+  .employee-skill-toolbar,
+  .employee-skill-mount-form,
+  .employee-mounted-skill-list,
+  .employee-skill-candidates,
+  .employee-skill-mount-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-draft-form .wide,
+  .skill-draft-actions,
+  .model-binding-actions,
+  .employee-skill-inline-hint {
+    grid-column: 1;
+  }
+
+  .skill-draft-actions .primary-action,
+  .model-binding-actions .primary-action,
+  .employee-skill-inline-hint {
+    width: 100%;
+  }
+
+  .employee-skill-filter {
+    justify-content: flex-start;
+  }
+
+  .employee-product-panel dl div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .employee-mounted-skill-list,
+  .employee-skill-candidates {
+    max-height: min(64vh, 520px);
+  }
+
+  .employee-mounted-skill,
+  .employee-skill-block-title,
+  .employee-skill-request {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .model-binding-head,
+  .model-binding-actions {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .employee-section .entity-list {
+    padding: 0 16px 16px;
+  }
+
+  .employee-section-title strong {
+    font-size: 1.16rem;
+  }
+}

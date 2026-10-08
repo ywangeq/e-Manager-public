@@ -1,0 +1,262 @@
+.algorithm-runtime-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+}
+
+.algorithm-runtime-head,
+.algorithm-runtime-section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.algorithm-runtime-head > span,
+.algorithm-runtime-section-head {
+  min-width: 0;
+}
+
+.algorithm-runtime-head strong,
+.algorithm-runtime-head small,
+.algorithm-runtime-section-head strong,
+.algorithm-runtime-section-head small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.algorithm-runtime-head strong,
+.algorithm-runtime-section-head strong {
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.algorithm-runtime-head small,
+.algorithm-runtime-section-head small {
+  margin-top: 3px;
+  color: var(--description);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.algorithm-runtime-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.algorithm-runtime-summary > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.algorithm-runtime-summary small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.algorithm-runtime-summary strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.algorithm-runtime-summary .status-pill {
+  justify-self: start;
+}
+
+.algorithm-runtime-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.algorithm-runtime-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.algorithm-runtime-checks,
+.algorithm-resource-list,
+.algorithm-task-list {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.algorithm-runtime-checks > span,
+.algorithm-resource-list > span,
+.algorithm-task-list > span {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.34fr) minmax(72px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.algorithm-runtime-checks > span:first-child,
+.algorithm-resource-list > span:first-child,
+.algorithm-task-list > span:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.algorithm-runtime-checks b,
+.algorithm-resource-list b,
+.algorithm-task-list b {
+  color: var(--text);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.algorithm-runtime-checks em,
+.algorithm-resource-list em,
+.algorithm-task-list em {
+  justify-self: start;
+  min-height: 22px;
+  padding: 4px 8px;
+  border: 1px solid rgba(110, 168, 255, 0.22);
+  border-radius: 999px;
+  color: var(--blue);
+  background: rgba(110, 168, 255, 0.08);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.algorithm-runtime-checks small,
+.algorithm-resource-list small,
+.algorithm-task-list small {
+  color: var(--description);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.algorithm-runtime-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--description);
+  background: var(--control-bg);
+}
+
+.algorithm-runtime-empty.is-error {
+  color: #a33f2b;
+  background: rgba(244, 132, 103, 0.08);
+}
+
+.algorithm-runtime-empty.is-action {
+  border-color: rgba(255, 193, 7, 0.38);
+  color: #8a5a00;
+  background: rgba(255, 193, 7, 0.09);
+}
+
+.algorithm-runtime-empty strong,
+.algorithm-runtime-empty small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.algorithm-runtime-empty strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.algorithm-runtime-empty small {
+  margin-top: 3px;
+  font-size: 0.78rem;
+}
+
+.algorithm-resource-item {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.algorithm-resource-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.algorithm-resource-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.34fr) minmax(72px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.algorithm-resource-readonly-detail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto)) minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(110, 168, 255, 0.16);
+  border-radius: 8px;
+  background: var(--control-bg);
+}
+
+.algorithm-resource-readonly-detail span {
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.algorithm-resource-readonly-detail small {
+  min-width: 0;
+}
+
+@media (max-width: 1120px) {
+  .algorithm-runtime-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .algorithm-runtime-summary,
+  .algorithm-runtime-grid,
+  .algorithm-runtime-head,
+  .algorithm-runtime-section-head,
+  .algorithm-runtime-checks > span,
+  .algorithm-resource-row,
+  .algorithm-resource-readonly-detail,
+  .algorithm-task-list > span {
+    grid-template-columns: 1fr;
+  }
+}

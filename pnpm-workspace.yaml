@@ -1,0 +1,9 @@
+packages:
+  - .
+  - desktop-channel-mvp
+
+allowBuilds:
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+  protobufjs: false

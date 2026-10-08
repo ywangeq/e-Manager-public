@@ -4,13 +4,25 @@
 
 e-Manager 将数字员工、专业技能、业务系统连接和任务交付放在一个管理平台中。员工通过桌面工作台使用能力，管理者集中配置、授权和审核。
 
-## 1.0 本地交付与二次开发
+## 安装与二次开发
 
-**Center 源码会提供。** 1.0 计划公开 Center 前端、服务端、通用运行框架与本地启动脚本，并提供 Center ZIP 启动包和 Group Studio 3.x 桌面端。Center ZIP 需要 Node.js 与 pnpm，通过命令启动；桌面端单独安装并连接 Center。
+[下载 1.0](https://github.com/ywangeq/e-Manager-public/releases/tag/v1.0.0)：Center 本地启动包、Group Studio 3.x 桌面包（macOS Apple Silicon），以及免费文本摘要 Skill 示例。
 
-用户可以配置模型与业务 API、制作自己的员工/Skill 资产包，也可以修改公开源码。企业认证、组织权限、专有 API 和新增渠道可能需要适配开发。具体入口、安装前提和免费/付费资产边界见 [二次开发与资产扩展说明](docs/secondary-development.md)。
+**Center 源码在本仓库。** 前端位于 `src/`，服务端位于 `server/`，Group Studio 位于 `desktop-channel-mvp/`。源码采用独立发布历史。
 
-当前 GitHub 仍为文档审核稿：独立本地候选已完成基础构建与登录验证，源码和安装包尚未上传，公开出口检查仍在进行。正式 1.0 将通过本仓库源码和 GitHub Releases 交付；现有业务资产不随版本发布。
+Center ZIP 需要 **Node.js 24.13+ 和 pnpm 11**。解压后在该目录执行：
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm local:install
+pnpm start
+```
+
+打开 `http://127.0.0.1:14878`，账号 `admin@localhost`，首次密码见本地 `data/local/first-login.txt`。从源码运行时，在启动前执行 `pnpm build`。先启动 Center，再打开 Group Studio；桌面包不自动启动 Center。
+
+用户可以配置模型、制作员工和 Skill，或修改源码接入自己的系统。企业认证、组织权限、专有 API 和新增渠道可能需要开发适配，详见 [二次开发说明](docs/secondary-development.md) 和 [本地安装说明](docs/current-state.md)。
+
+桌面包尚未签名或公证，Windows 包未提供。已验证本地登录、基础权限与空目录，完整模型执行和企业接入需按自己的环境联调。
 
 ## 产品演示
 
@@ -57,7 +69,7 @@ Center 与桌面端需要配套部署。本项目不是下载后即可接入任�
 
 商业交付的功能范围、适配系统、部署环境、配套服务和验收标准以双方书面约定为准。
 
-当前公开仓库提供产品介绍、演示视频与许可审核稿。用户已授权准备 1.0 源码及本地软件交付；公开出口检查完成前仍没有可下载的软件交付包。内部开发历史、私有配置和运行数据不属于公开交付内容。
+可选行业适配代码保留在源码中；没有对应员工、Skill 和目标系统授权时，不能直接执行业务。企业配置、凭证和运行数据不属于公开交付内容。
 
 ## 商业合作
 
@@ -71,12 +83,12 @@ Center 与桌面端需要配套部署。本项目不是下载后即可接入任�
 
 1.0 提供平台，不附带现有业务数字员工、Skill 包或企业数据。使用时需要配置模型，并导入自己的员工和技能。
 
-后续会逐步提供免费示例，以及面向具体业务的付费员工和技能包。各包会注明使用和修改权限；购买资产包是否包含平台商业授权，也会单独说明。具体开发方式见 [二次开发说明](docs/secondary-development.md)。
+仓库提供一个 [免费文本摘要示例](examples/README.md)，供练习制作和导入 Skill。后续会逐步提供面向具体业务的付费员工和技能包。各包会注明使用和修改权限；购买资产包是否包含平台商业授权，也会单独说明。具体开发方式见 [二次开发说明](docs/secondary-development.md)。
 
 ## 许可证与商业授权
 
 Copyright (c) 2026 王远 / WANG YUAN。
 
-本项目原创代码与文档采用标准 [PolyForm Noncommercial 1.0.0](LICENSE)，许可证保留官方原文，版权声明见 [NOTICE](NOTICE)。非商业用途及许可证明确允许的其他用途免费；超出该许可范围的商业部署、销售与收费服务，须另行取得版权主体的书面商业授权。
+本项目采用 [PolyForm Noncommercial 1.0.0](LICENSE)。可在许可证允许的范围内免费使用、学习和修改；超出该范围的商业使用，请联系王远获取书面授权：[wyuan552@gmail.com](mailto:wyuan552@gmail.com)，微信 `Free_for_wy`。
 
-许可范围以 [官方条款](https://polyformproject.org/licenses/noncommercial/1.0.0) 为准，其中包含对非商业组织等用途的明确规定。本项目属于源码公开项目，限制商业使用的许可不属于 OSI 认可的开源许可。第三方依赖与第三方材料继续遵循各自许可证。
+具体范围以 [LICENSE](LICENSE) 为准，版权声明见 [NOTICE](NOTICE)。本项目公开源码，该许可证不属于 OSI 认可的开源许可。第三方依赖遵循各自许可证，业务资产包另行注明授权范围。

@@ -1,0 +1,108 @@
+.status-pill {
+  min-height: 28px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.status-pill.good {
+  border-color: rgba(85, 226, 168, 0.38);
+  color: #bff8df;
+  background: rgba(85, 226, 168, 0.1);
+}
+
+.status-pill.warn {
+  border-color: rgba(255, 209, 102, 0.42);
+  color: #ffe8ac;
+  background: rgba(255, 209, 102, 0.11);
+}
+
+.status-pill.bad {
+  border-color: rgba(234, 67, 53, 0.34);
+  color: var(--red);
+  background: rgba(234, 67, 53, 0.08);
+}
+
+.status-pill.info {
+  border-color: rgba(110, 168, 255, 0.42);
+  color: #cfe0ff;
+  background: rgba(110, 168, 255, 0.13);
+}
+
+.status-pill.muted {
+  color: var(--pill-text);
+}
+
+.status-pill.ops-diagnosis-state.fact-confirmed {
+  border-color: rgba(66, 133, 244, 0.52);
+  color: #c7dcff;
+  background: rgba(66, 133, 244, 0.14);
+}
+
+.status-pill.ops-diagnosis-state.root-pending {
+  border-color: rgba(251, 188, 5, 0.54);
+  color: #ffe6a0;
+  background: rgba(251, 188, 5, 0.13);
+}
+
+.status-pill.ops-diagnosis-state.root-confirmed {
+  border-color: rgba(52, 168, 83, 0.54);
+  color: #c6f4d2;
+  background: rgba(52, 168, 83, 0.14);
+}
+
+.console-shell[data-theme="light"] .status-pill.good {
+  color: #13624e;
+}
+
+.console-shell[data-theme="light"] .status-pill.warn {
+  color: #7b4b00;
+}
+
+.console-shell[data-theme="light"] .status-pill.bad {
+  color: #b8334e;
+}
+
+.console-shell[data-theme="light"] .status-pill.info {
+  color: #245ca5;
+  background: rgba(44, 104, 184, 0.1);
+}
+
+.console-shell[data-theme="light"] .status-pill.ops-diagnosis-state.fact-confirmed {
+  color: #185abc;
+  background: rgba(66, 133, 244, 0.12);
+}
+
+.console-shell[data-theme="light"] .status-pill.ops-diagnosis-state.root-pending {
+  color: #7a4c00;
+  background: rgba(251, 188, 5, 0.15);
+}
+
+.console-shell[data-theme="light"] .status-pill.ops-diagnosis-state.root-confirmed {
+  color: #137333;
+  background: rgba(52, 168, 83, 0.13);
+}
+
+.console-shell[data-theme="light"] .status-pill.muted {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--control-bg);
+  font-weight: 800;
+}
+
+.topbar-actions > :is(.theme-toggle, .ghost-action) {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+}

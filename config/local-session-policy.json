@@ -1,0 +1,23 @@
+{
+  "contractVersion": "session-foundation-policy.v1",
+  "idle": {
+    "resetAfterMs": 604800000
+  },
+  "reset": {
+    "allowedModes": [
+      "automatic",
+      "explicit"
+    ]
+  },
+  "retention": {
+    "allowedDeleteModes": [
+      "explicit",
+      "retention"
+    ]
+  },
+  "limits": {
+    "maxEntriesPerSession": 20000,
+    "maxEntryBytes": 131072,
+    "maxCasRetries": 50
+  }
+}
