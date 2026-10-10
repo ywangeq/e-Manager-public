@@ -449,7 +449,7 @@ export default function SystemWorkersView({
                     ? ["Lane 并发", `${selectedWorker.maxParallelWorkers} workers`]
                     : ["Lane 并发 / 单轮取件", `${selectedWorker.maxParallelWorkers} workers / ${selectedWorker.batchSize} 条`],
                   ["最大排队数 / 排队提醒", `${selectedWorker.taskBufferQueueSize || 0} 个任务 / ${selectedWorker.taskBufferMinutes || 240} 分钟`],
-                  ["单任务执行超时", `${selectedWorker.taskExecutionTimeoutMinutes || 60} 分钟`],
+                  ["Worker 执行预算声明", `${selectedWorker.taskExecutionTimeoutMinutes || 60} 分钟`],
                   ["编辑权限", selectedWorker.access?.label || "系统管理员"],
                   ["去重签名", selectedWorker.dedupeKey],
                   ["输出契约", selectedWorker.outputContract],

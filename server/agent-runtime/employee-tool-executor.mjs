@@ -26,8 +26,19 @@ async function createEmployeeToolExecutor({
   const configuredTools = (Array.isArray(toolDescriptors) ? toolDescriptors : [])
     .filter((tool) => managedOpenApiBinding(employee, tool?.toolId));
   const registeredToolIds = new Set(configuredTools.map((tool) => cleanId(tool?.toolId)).filter(Boolean));
+  const normalizedAdditionalExecutors = Array.isArray(additionalExecutors) ? additionalExecutors.filter(Boolean) : [];
+  const additionalToolIds = new Set();
+  for (const executor of normalizedAdditionalExecutors) {
+    const ids = executor.handledToolIds?.() || [];
+    if (!Array.isArray(ids)) throw new TypeError("employee_tool_ownership_invalid");
+    for (const id of new Set(ids.map(cleanId).filter(Boolean))) {
+      if (additionalToolIds.has(id)) throw new Error("employee_tool_ownership_conflict");
+      additionalToolIds.add(id);
+    }
+  }
+  if ([...additionalToolIds].some(id => registeredToolIds.has(id))) throw new Error("employee_tool_ownership_conflict");
   const missingManagedOpenApiToolIds = enabledManagedOpenApiBindingIds(employee)
-    .filter((toolId) => !registeredToolIds.has(cleanId(toolId)));
+    .filter((toolId) => !registeredToolIds.has(cleanId(toolId)) && !additionalToolIds.has(cleanId(toolId)));
   const managedExecutors = await Promise.all(configuredTools.map(async (tool) => {
     const executor = await createManagedOpenApiToolExecutor({
       ...tool,
@@ -42,15 +53,17 @@ async function createEmployeeToolExecutor({
       operationReceiptProjector,
     });
     if (typeof tool.isCurrent !== "function") return executor;
-    return {
-      ...executor,
-      async execute(call, options) {
-        let current = false;
-        try { current = await tool.isCurrent() === true; } catch { /* Fail closed on registry unavailability. */ }
-        if (!current) return { ok: false, status: "blocked", error: "tool_asset_no_longer_current",
-          message: "Tool 发布版本或连接授权已变化，请使用当前配置重新运行。" };
-        return executor.execute(call, options);
-      },
+    const invokeCurrent = async (method, call, options) => {
+      let current = false;
+      try { current = await tool.isCurrent() === true; } catch { /* Fail closed on registry unavailability. */ }
+      if (!current) return { ok: false, status: "blocked", error: "tool_asset_no_longer_current",
+        message: "Tool 发布版本或连接授权已变化，请使用当前配置重新运行。" };
+      if (typeof executor[method] !== "function") return {ok:false,status:"blocked",error:"external_effect_unknown"};
+      return executor[method](call, options);
+    };
+    return { ...executor,
+      execute: (call, options) => invokeCurrent("execute", call, options),
+      recoverRecordedResult: (call, options) => invokeCurrent("recoverRecordedResult", call, options),
     };
   }));
   const governedToolCompletionPolicies = normalizeSkillToolCompletionPolicies(toolCompletionPolicies);
@@ -72,7 +85,6 @@ async function createEmployeeToolExecutor({
       toolName: invokeDefinition.name,
     }));
   });
-  const normalizedAdditionalExecutors = Array.isArray(additionalExecutors) ? additionalExecutors.filter(Boolean) : [];
   const privateAgentResults = new WeakMap();
   const hasBusinessTools = managedExecutors.some((executor) => executor.toolDefinitions?.().length) ||
     normalizedAdditionalExecutors.some((executor) => executor.toolDefinitions?.().length);
@@ -109,6 +121,56 @@ async function createEmployeeToolExecutor({
     return candidates.length
       ? { toolChoice: "required", allowedToolNames: [...new Set(candidates)] }
       : { toolChoice: "auto", allowedToolNames: [] };
+  }
+
+  async function executeOwned(toolCall = {}, options = {}, recover = false) {
+    if (options.signal?.aborted) return canceledToolResult();
+    const executionPolicy = toolExecutionPolicy();
+    if (executionPolicy.allowedToolNames && !executionPolicy.allowedToolNames.includes(toolCall.name)) {
+      return { ok: false, status: "blocked", error: "tool_dependency_not_ready", message: "该 Tool 的必需输入依赖尚未就绪。" };
+    }
+    const executor = currentDefinitionOwners().get(toolCall.name)?.executor;
+    if (!executor) return { ok: false, status: "blocked", error: "tool_not_allowed", message: "该 Tool 未被当前数字员工声明。" };
+    if (recover && typeof executor.recoverRecordedResult !== "function") {
+      return {ok:false,status:"blocked",error:"external_effect_unknown",message:"该 Tool 不支持确定回执恢复，已停止重放。"};
+    }
+    const result = await executor[recover ? "recoverRecordedResult" : "execute"](toolCall, options);
+    if (options.signal?.aborted) return canceledToolResult(toolCall.name);
+    for (const capability of managedCompletionCapabilities) {
+      if (toolCall.name === capability.toolName &&
+        toolCall.arguments?.operationId === capability.operationId && result?.ok !== true) {
+        console.warn("[skill-tool-completion] required operation did not produce evidence", {
+          code: String(result?.code || "").slice(0, 180),
+          contractId: capability.contractId,
+          error: String(result?.error || "tool_operation_failed").slice(0, 120),
+          httpStatus: Number(result?.httpStatus || 0),
+          message: String(result?.msg || result?.message || "").slice(0, 500),
+          operationId: capability.operationId,
+          status: String(result?.status || "blocked").slice(0, 40),
+          toolId: capability.toolId,
+        });
+      }
+    }
+    if (result?.ok === true && result.status === "completed" || targetResponseObserved(result)) {
+      for (const capability of managedCompletionCapabilities) {
+        if (toolCall.name === capability.toolName &&
+          capability.operationId === capability.evidenceOperationId &&
+          toolCall.arguments?.operationId === capability.evidenceOperationId &&
+          result.operationId === capability.evidenceOperationId &&
+          (result?.ok === true || capability.evidenceMode === "target_response_observed")) {
+          completionEvidenceByContract.set(capability.contractId, Object.freeze({
+            contractId: capability.contractId,
+            status: "verified",
+          }));
+        }
+      }
+    }
+    const safeResult = { ...(result || {}), toolName: toolCall.name };
+    const projectedResult = executor.agentResultFor?.(result);
+    if (projectedResult && projectedResult !== result && typeof projectedResult === "object") {
+      privateAgentResults.set(safeResult, { ...projectedResult, toolName: toolCall.name });
+    }
+    return safeResult;
   }
 
   return {
@@ -176,52 +238,8 @@ async function createEmployeeToolExecutor({
       })));
       return capabilities;
     },
-    async execute(toolCall = {}, options = {}) {
-      if (options.signal?.aborted) return canceledToolResult();
-      const executionPolicy = toolExecutionPolicy();
-      if (executionPolicy.allowedToolNames && !executionPolicy.allowedToolNames.includes(toolCall.name)) {
-        return { ok: false, status: "blocked", error: "tool_dependency_not_ready", message: "该 Tool 的必需输入依赖尚未就绪。" };
-      }
-      const executor = currentDefinitionOwners().get(toolCall.name)?.executor;
-      if (!executor) return { ok: false, status: "blocked", error: "tool_not_allowed", message: "该 Tool 未被当前数字员工声明。" };
-      const result = await executor.execute(toolCall, options);
-      if (options.signal?.aborted) return canceledToolResult(toolCall.name);
-      for (const capability of managedCompletionCapabilities) {
-        if (toolCall.name === capability.toolName &&
-          toolCall.arguments?.operationId === capability.operationId && result?.ok !== true) {
-          console.warn("[skill-tool-completion] required operation did not produce evidence", {
-            code: String(result?.code || "").slice(0, 180),
-            contractId: capability.contractId,
-            error: String(result?.error || "tool_operation_failed").slice(0, 120),
-            httpStatus: Number(result?.httpStatus || 0),
-            message: String(result?.msg || result?.message || "").slice(0, 500),
-            operationId: capability.operationId,
-            status: String(result?.status || "blocked").slice(0, 40),
-            toolId: capability.toolId,
-          });
-        }
-      }
-      if (result?.ok === true && result.status === "completed" || targetResponseObserved(result)) {
-        for (const capability of managedCompletionCapabilities) {
-          if (toolCall.name === capability.toolName &&
-            capability.operationId === capability.evidenceOperationId &&
-            toolCall.arguments?.operationId === capability.evidenceOperationId &&
-            result.operationId === capability.evidenceOperationId &&
-            (result?.ok === true || capability.evidenceMode === "target_response_observed")) {
-            completionEvidenceByContract.set(capability.contractId, Object.freeze({
-              contractId: capability.contractId,
-              status: "verified",
-            }));
-          }
-        }
-      }
-      const safeResult = { ...(result || {}), toolName: toolCall.name };
-      const projectedResult = executor.agentResultFor?.(result);
-      if (projectedResult && projectedResult !== result && typeof projectedResult === "object") {
-        privateAgentResults.set(safeResult, { ...projectedResult, toolName: toolCall.name });
-      }
-      return safeResult;
-    },
+    execute: (call, options) => executeOwned(call, options, false),
+    recoverRecordedResult: (call, options) => executeOwned(call, options, true),
     safeToolCatalog() {
       const available = new Set(this.toolDefinitions().map((definition) => definition.name));
       return executors.flatMap((executor) => executor.safeToolCatalog?.() || [])

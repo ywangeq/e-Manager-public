@@ -25,6 +25,7 @@ import { employeeDisplayStatus, employeeRuntimeHealth, employeeRuntimeStatusDeta
 import {
   desktopChannelAvailable,
   employeeChannels,
+  digitalEmployeeLevelLabel,
   feishuApplicationEnabled,
   normalizeDigitalEmployeeFilters,
 } from "../lib/digitalEmployeeOverview";
@@ -352,7 +353,7 @@ function SelectedEmployeeConfiguration({
         <div>
           <p className="eyebrow">Digital Employee Config</p>
           <h2>{employee.name}</h2>
-          <span>{employee.level || "业务级"} · {employee.department} · {employee.owner || "未指定负责人"}</span>
+          <span>{digitalEmployeeLevelLabel(employee)} · {employee.department} · {employee.owner || "未指定负责人"}</span>
         </div>
         <div className="selected-employee-config-actions">
           <button className="ghost-action selected-employee-back-action" type="button" onClick={onBackToList}>
@@ -551,7 +552,7 @@ function DigitalEmployeeRow({
         description={employee.objective}
         status={<span className={`status-pill ${displayStatusTone}`}>{displayStatus}</span>}
         summary={[
-          employee.level || "业务级",
+          digitalEmployeeLevelLabel(employee),
           employee.department,
           permissionLabel,
           `${channels.length} Channels`,

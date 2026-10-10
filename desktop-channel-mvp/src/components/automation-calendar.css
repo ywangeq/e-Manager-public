@@ -13,26 +13,26 @@
 .automation-calendar > header button { display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:28px; border:1px solid #dce7e1; border-radius:6px; background:#fff; color:#52705f; font-size:12px; }
 .automation-calendar-note { color:#74867b; }
 .automation-week-scroll { overflow-x:auto; border:1px solid #e0e8e3; border-radius:8px; }
-.automation-week-grid { display:grid; grid-template-columns:repeat(7,minmax(116px,1fr)); background:#fff; min-height:230px; }
-.automation-week-grid > section { border-right:1px solid #e9eeeb; padding:8px; min-width:0; }
+.automation-week-grid { display:grid; grid-template-columns:repeat(7,minmax(116px,1fr)); background:#fff; height:clamp(230px,45vh,320px); min-height:230px; }
+.automation-week-grid > section { display:flex; flex-direction:column; border-right:1px solid #e9eeeb; padding:8px; min-width:0; min-height:0; }
 .automation-week-grid > section:last-child { border:0; }
-.automation-week-grid > section > header { display:flex; align-items:center; gap:6px; padding:5px 2px 12px; color:#6d8075; font-size:11px; }
+.automation-week-grid > section > header { display:flex; flex-shrink:0; align-items:center; gap:6px; padding:5px 2px 12px; color:#6d8075; font-size:11px; }
 .automation-week-grid > section > header strong { font-size:17px; color:#3e5b4b; }
 .automation-week-grid > section.is-today { background:#f5faf7; }
 .automation-week-grid > section.is-today > header strong { color:#16865f; }
 .automation-week-grid > section > header small { margin-left:auto; font-size:10px; color:#16865f; }
-.automation-day-list { list-style:none; margin:0; padding:0; }
+.automation-day-list { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior-y:contain; list-style:none; margin:0; padding:0; }
 .automation-day-list > li + li { margin-top:8px; }
-.automation-calendar-event { display:block; box-sizing:border-box; width:100%; margin:0; padding:10px 8px; border:1px solid #e0e8e3; border-left:3px solid #649783; border-radius:4px; background:#fff; color:#315b46; text-align:left; cursor:pointer; -webkit-app-region:no-drag; }
+.automation-calendar-event { display:block; box-sizing:border-box; width:100%; max-width:164px; margin:0; padding:6px 8px; border:1px solid #e0e8e3; border-left:3px solid #649783; border-radius:4px; background:#fff; color:#315b46; text-align:left; cursor:pointer; -webkit-app-region:no-drag; }
 .automation-calendar-event:hover { background:#e9f3ed; }
 .automation-calendar-event.is-selected { background:#e6f3ec; outline:1px solid #319b74; outline-offset:-1px; }
 .automation-calendar-event:focus-visible { outline:2px solid #319b74; outline-offset:-2px; }
 .automation-calendar-event time,.automation-calendar-event strong,.automation-calendar-event small { display:block; overflow-wrap:anywhere; }
 .automation-calendar-event time { font-size:11px; font-variant-numeric:tabular-nums; color:#52705f; }
 .automation-calendar-event strong { display:flex; align-items:baseline; gap:5px; margin:4px 0; font-size:12px; line-height:18px; }
-.automation-calendar-event strong > span:last-child { min-width:0; }
+.automation-calendar-event strong > span:last-child { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .automation-calendar-event strong > span:first-child { display:none; }
-.automation-calendar-event small { font-size:10px; color:#698577; }
+.automation-calendar-event small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; color:#698577; }
 .personal-automations-panel .automation-day-empty { color:#93a198; font-size:11px; line-height:1.6; }
 
 .personal-cockpit .automation-view-toggle { border-radius: var(--cockpit-radius); background: var(--cockpit-hover); }
@@ -60,7 +60,7 @@
 .personal-cockpit .automation-calendar-event time { color: var(--cockpit-accent); font-weight: 600; }
 .personal-cockpit .automation-calendar-event small, .personal-cockpit .automation-day-empty { color: var(--cockpit-muted); font-size: 11px; }
 .personal-cockpit .automation-calendar-event:active { background: var(--cockpit-selected); }
-.automation-calendar-tooltip { position:fixed; z-index:1000; box-sizing:border-box; display:grid; gap:7px; padding:14px; border:1px solid #dce5df; border-radius:8px; background:#fff; color:#1c302a; box-shadow:0 8px 28px #1c302a20; font:12px/1.5 system-ui,sans-serif; overflow-wrap:anywhere; max-height:calc(100vh - 32px); overflow-y:auto; -webkit-app-region:no-drag; }
+.automation-calendar-tooltip { pointer-events:none; position:fixed; z-index:1000; box-sizing:border-box; display:grid; gap:7px; padding:14px; border:1px solid #dce5df; border-radius:8px; background:#fff; color:#1c302a; box-shadow:0 8px 28px #1c302a20; font:12px/1.5 system-ui,sans-serif; overflow-wrap:anywhere; max-height:calc(100vh - 32px); overflow-y:auto; -webkit-app-region:no-drag; }
 .automation-calendar-tooltip strong { font-size:13px; }
 .automation-calendar-tooltip span { color:#5f7168; }
 .automation-calendar-tooltip small { border-top:1px solid #dce5df; padding-top:7px; color:#63746b; }
@@ -72,3 +72,39 @@
 @media (prefers-reduced-motion: reduce) {
   .personal-automation-switch > span { transition: none !important; }
 }
+
+.personal-automations-panel .automation-task-header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.automation-task-identity,.automation-task-controls { display:flex; align-items:center; gap:12px; }
+.automation-task-identity { min-width:0; flex-wrap:wrap; }
+.automation-task-controls { flex-shrink:0; }
+.personal-automations-panel .automation-task-controls .personal-automation-switch { position:relative; flex:0 0 35px; width:35px; height:21px; min-width:35px; min-height:21px; padding:2px; border:0; border-radius:11px; background:#aebbb4; cursor:pointer; box-shadow:none; }
+.personal-automations-panel .automation-task-controls .personal-automation-switch[aria-checked="true"] { background:var(--cockpit-accent,#6685b4); }
+.personal-automations-panel .automation-task-controls .personal-automation-switch > span { display:block; width:17px; height:17px; border-radius:50%; background:#fff; box-shadow:0 1px 3px #0002; transition:transform .15s ease; }
+.personal-automations-panel .automation-task-controls .personal-automation-switch[aria-checked="true"] > span { transform:translateX(14px); }
+.personal-automations-panel .automation-task-controls .personal-automation-switch:disabled { opacity:.5; cursor:default; }
+.automation-schedule-settings { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-top:12px; padding:14px; background:var(--cockpit-surface,#fff); border:1px solid var(--cockpit-line,#dce5df); border-radius:12px; }
+.automation-schedule-settings label { display:flex; flex-direction:column; gap:6px; font-size:12px; }
+.automation-schedule-settings input,.automation-schedule-settings select { box-sizing:border-box; width:160px; min-height:34px; padding:5px 8px; border:1px solid var(--cockpit-line,#dce5df); border-radius:7px; background:var(--cockpit-surface,#fff); color:inherit; font:inherit; }
+.automation-interval-input { display:flex; gap:6px; }
+.automation-interval-input input { width:100px; }
+.automation-interval-input select { width:72px; }
+.automation-schedule-settings small { flex-basis:100%; line-height:1.6; color:var(--cockpit-muted,#63746b); }
+.automation-settings-footer { display:flex; flex-basis:100%; justify-content:flex-end; gap:8px; padding-top:10px; border-top:1px solid var(--cockpit-line,#dce5df); }
+.personal-automations-panel .automation-settings-footer .personal-automation-action { display:inline-flex; align-items:center; justify-content:center; min-width:72px; height:34px; padding:6px 16px; border:1px solid var(--cockpit-line,#dce5df); border-radius:17px; background:var(--cockpit-surface,#fff); color:var(--cockpit-ink,#294238); font:inherit; cursor:pointer; }
+.personal-automations-panel .automation-settings-footer .personal-automation-action.is-primary { background:var(--cockpit-accent,#6685b4); border-color:var(--cockpit-accent,#6685b4); color:#fff; }
+.automation-settings-footer button:disabled { opacity:.5; cursor:default; }
+.automation-settings-footer button:hover:not(:disabled) { filter:brightness(.97); }
+.automation-settings-dialog { box-sizing:border-box; width:min(520px,calc(100vw - 32px)); max-height:calc(100vh - 48px); margin:auto; padding:20px; overflow:auto; border:1px solid var(--cockpit-line,#dce5df); border-radius:20px; background:var(--cockpit-paper,#f5f8fc); background:color-mix(in srgb,var(--cockpit-paper,#dee6f1) 20%,white); color:var(--cockpit-ink,#294238); box-shadow:0 16px 48px #162c4826; -webkit-app-region:no-drag; }
+.automation-settings-dialog::backdrop { background:rgba(28,40,58,.25); }
+.automation-settings-dialog > h3 { margin:0 0 16px; font-size:15px; }
+.automation-settings-dialog .automation-schedule-settings { margin-top:12px; }
+.automation-settings-dialog .automation-task-header { gap:12px; }
+.automation-calendar > header > div { flex-wrap:wrap; justify-content:flex-end; }
+.personal-automations-panel .automation-task-row { border-left:3px solid var(--cockpit-accent,#6685b4); }
+.personal-automations-panel .automation-task-row.is-disabled { border-left-color:var(--automation-disabled-stripe,#a5acb6); }
+.automation-calendar .automation-calendar-event.is-automation { border-style:solid; border-left-width:3px; border-left-color:var(--cockpit-accent,#6685b4); }
+.automation-calendar .automation-calendar-event.is-automation.is-disabled { border-left-color:var(--automation-disabled-stripe,#a5acb6); }
+.automation-calendar .automation-calendar-event.is-meeting { border-style:dashed; border-left-width:1px; border-color:var(--cockpit-line,#c6d3de); }
+
+.calendar-meeting-time { font-size:13px; line-height:1.6; }
+.calendar-meeting-links { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0; }

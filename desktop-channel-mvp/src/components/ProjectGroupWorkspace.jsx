@@ -10,6 +10,7 @@ import { GroupReviewOpinions } from "./GroupReviewOpinions.jsx";
 import { GroupReviewerConfigurator } from "./GroupReviewerConfigurator.jsx";
 import { ArtifactDeliveryEntry } from "./ArtifactDeliveryEntry.jsx";
 import { createGroupRunFollower } from "../lib/groupRunFollow.js";
+import { groupWorkbenchHistory } from "../lib/groupWorkbenchHistory.js";
 import { GroupRunHistory } from "./GroupRunHistory.jsx";
 import { PersonalAutomationsPanel } from "./PersonalAutomationsPanel.jsx";
 import { TaskDetails } from "./MyTasksSheet.jsx";
@@ -258,6 +259,7 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
   const [groupMemberIds, setGroupMemberIds] = useState(null);
   const [directEmployeeId, setDirectEmployeeId] = useState("");
   const [directTaskId, setDirectTaskId] = useState("");
+  const [taskSetKey, setTaskSetKey] = useState("");
 
   const seenParameterCardsRef = useRef(new Set());
   const [leftRailCollapsed, setLeftRailCollapsed] = useState(false);
@@ -266,6 +268,7 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
   const manualMemberPositionsRef = useRef({});
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [activeNav, setActiveNav] = useState("feed");
+  const [allAutomations, setAllAutomations] = useState(false);
   useEffect(() => {
     if (!directEmployeeId || directEmployeeId !== employeeConversationState?.employeeId) return;
     const ids = employeeConversationState?.pendingCardIds || [];
@@ -289,6 +292,8 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
   const [reworkIntent, setReworkIntent] = useState("");
   const selectedHistory = history.find(item => item.key === historyKey);
   const taskHistory = useMemo(() => workbenchTaskHistory(history, myTasks?.page?.tasks || [], automationSources?.automationPhase === "ready" ? automationSources.automations : []), [history, myTasks?.page, automationSources?.automations, automationSources?.automationPhase]);
+  const taskSet = taskSetKey ? groupWorkbenchHistory(taskHistory, automationSources?.automationPhase === "ready" ? automationSources.automations : [], automationSources?.runDetails).find(item => item.key === taskSetKey) : null;
+  useEffect(() => { if (!["feed", "activity"].includes(activeNav)) setTaskSetKey(""); }, [activeNav]);
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [titleSaving, setTitleSaving] = useState(false);
@@ -470,9 +475,11 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
     finally { deletingHistoryRef.current = false; submittingRef.current = false; setBusy(false); setHistoryLoading(false); }
   }
   function selectHistory(item) {
-    if (!item || submittingRef.current || item.key === historyKey || (directEmployeeId && employeeConversationState?.locked)) return;
+    if (!item || submittingRef.current || (directEmployeeId && employeeConversationState?.locked)) return;
+    if (item.key === historyKey) { setActiveNav("feed"); return true; }
     if (item.kind === "employee") {
       if (!onSelectEmployeeConversation?.({ employeeId: item.employeeId })) { announce("该员工当前不可用，无法打开任务记录"); return; }
+      setTaskSetKey("");
       viewGenerationRef.current += 1;
       materialGenerationRef.current += 1; materialSelectionRef.current += 1;
       setGroupAttachments([]); setGroupMaterialState(null); setGroupAttachmentFeedback(null);
@@ -482,9 +489,10 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
       setReworkIntent("");
       setHistoryKey(null); setActiveRunId(null); setSafeProjection(null); setPendingPlan(null);
       setPlanSheetOpen(false); setInspectedDraft(null); setPendingTurn(null);
-      setDirectEmployeeId(item.employeeId); setDirectTaskId(item.taskId); setActiveNav("activity");
-      return;
+      setDirectEmployeeId(item.employeeId); setDirectTaskId(item.taskId); setActiveNav("feed");
+      return true;
     }
+    setTaskSetKey("");
     setDirectTaskId("");
     setDirectEmployeeId("");
     onSelectEmployeeConversation?.({ employeeId: "" });
@@ -507,6 +515,7 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
     setReviewerTeam(review ? { displayName: review.displayName || "复核小组", status: "未开始" } : null);
     setReviewerMode(review?.mode || "single");
     setFinalReviewerId(review?.finalReviewerEmployeeId || "");
+    setActiveNav("feed");
   }
   useEffect(() => {
     if (!authenticated || !initialGoalId || initialGoalSelectedRef.current) return;
@@ -614,7 +623,7 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
     ? [directTaskId || (employeeConversationState?.employeeId === directEmployeeId ? employeeConversationState.taskId : "")].filter(Boolean)
     : (safeProjection?.steps || []).map(step => step.taskId).filter(Boolean);
   const currentScheduledRules = workbenchScheduledRules(automationSources?.automationPhase === "ready" ? automationSources.automations || [] : [], { employeeIds: [...canvasMemberIds], taskIds: automationTaskIds });
-  useEffect(() => { if (directEmployeeId && employeeConversationState?.employeeId === directEmployeeId && employeeConversationState.busy) setDirectTaskId(""); }, [directEmployeeId, employeeConversationState?.employeeId, employeeConversationState?.busy, employeeConversationState?.taskId]);
+  useEffect(() => { if (directEmployeeId && employeeConversationState?.employeeId === directEmployeeId && employeeConversationState.busy) { setDirectTaskId(""); setTaskSetKey(""); } }, [directEmployeeId, employeeConversationState?.employeeId, employeeConversationState?.busy, employeeConversationState?.taskId]);
   const reviewerGroup = reviewerIds.length ? { ...(reviewerTeam?.reviewerGroupId ? { reviewerGroupId: reviewerTeam.reviewerGroupId, displayName: reviewerTeam.displayName } : {}), mode: reviewerMode, members: reviewerIds.map((employeeId, order) => { const employee = members.find((item) => item.employeeId === employeeId); return { employeeId, employeeVersion: employee?.employeeVersion || "", order }; }), finalReviewerEmployeeId: finalReviewerId } : null;
   const reviewerIssue = reviewerConfigurationIssue({ reviewerIds, mode: reviewerMode, finalReviewerEmployeeId: finalReviewerId });
   const assignmentLocked = Boolean((directEmployeeId && employeeConversationState?.locked) || busy || selectedHistory || activeRunId || pendingPlan || groupAttachments.length || reviewerIds.length || manualLinks.length);
@@ -1192,6 +1201,7 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
   }
 
   function createNewGroupGoal() {
+    setTaskSetKey("");
     if (busy || submittingRef.current || (directEmployeeId && employeeConversationState?.locked)) return;
     if (directEmployeeId) setComposer(employeeConversationState?.draftText || "");
     setDirectEmployeeId("");
@@ -1343,12 +1353,12 @@ export function ProjectGroupWorkspace({ runId = null, initialGoalId = "", onBack
         </aside>
 
         <section className="group-canvas-column">
-          <div hidden={activeNav === "automations"}><GroupRunHistory items={taskHistory.filter(item => item.kind !== "automation")} automations={automationSources?.automationPhase === "ready" ? automationSources.automations : []} runDetails={automationSources?.runDetails} ensureRuns={automationSources?.ensureRuns} selectedKey={directTaskId ? `employee-task:${directTaskId}` : historyKey} onSelect={selectHistory} onDelete={deleteHistory} onRefresh={async () => { await Promise.all([refreshHistory(), myTasks?.refresh?.()]); }} loading={historyLoading || myTasks?.busy} error={historyError || myTasks?.error} busy={busy} /></div>
+          <div hidden={activeNav === "automations"}><GroupRunHistory items={taskHistory.filter(item => item.kind !== "automation")} automations={automationSources?.automationPhase === "ready" ? automationSources.automations : []} runDetails={automationSources?.runDetails} ensureRuns={automationSources?.ensureRuns} selectedKey={directTaskId ? `employee-task:${directTaskId}` : historyKey} onSelect={selectHistory} onOpenTaskSet={item => { if (busy || submittingRef.current || employeeConversationState?.locked) return; if (selectHistory(item.source)) setTaskSetKey(item.key); }} onDelete={deleteHistory} onRefresh={async () => { await Promise.all([refreshHistory(), myTasks?.refresh?.()]); }} loading={historyLoading || myTasks?.busy} error={historyError || myTasks?.error} busy={busy} /></div>
           <section className="group-automation-inspector" aria-label="工作台定时任务">
-            {activeNav === "automations" ? <div id="group-automation-records" className="group-automation-history"><header><strong>当前任务的定时任务</strong><button type="button" onClick={() => setActiveNav("feed")}>返回信息流</button></header><PersonalAutomationsPanel key={`${[...canvasMemberIds].sort().join(",")}:${automationTaskIds.join(",")}`} cockpitMode workbenchScope={{ employeeIds: [...canvasMemberIds], employeeNames: Object.fromEntries(canvasMembers.map(member => [member.employeeId, member.name])), taskIds: automationTaskIds }} desktopApi={desktopApi} tasks={myTasks?.page?.tasks || []} renderTaskDetail={(task, state) => <TaskDetails task={task} state={state} onInspectArtifact={myTasks?.inspectArtifact} onDeliverArtifact={myTasks?.deliverArtifact} />} /></div> : null}
+            {activeNav === "automations" ? <div id="group-automation-records" className="group-automation-history"><header><strong>{allAutomations ? "我的全部定时任务" : "当前任务的定时任务"}</strong><button type="button" onClick={() => setAllAutomations(value => !value)}>{allAutomations ? "只看当前任务" : "查看全部"}</button><button type="button" onClick={() => setActiveNav("feed")}>返回信息流</button></header><p>{allAutomations ? "当前账号的单员工定时任务，按下次预计执行时间排列。" : directEmployeeId ? "仅显示与当前员工任务明确关联的定时规则。" : "仅汇总与本计划步骤明确关联的单员工定时规则；Group 整体定时执行尚未接入。"}</p><PersonalAutomationsPanel key={`${allAutomations}:${[...canvasMemberIds].sort().join(",")}:${automationTaskIds.join(",")}`} cockpitMode workbenchScope={allAutomations ? null : { employeeIds: [...canvasMemberIds], employeeNames: Object.fromEntries(canvasMembers.map(member => [member.employeeId, member.name])), taskIds: automationTaskIds }} desktopApi={desktopApi} tasks={myTasks?.page?.tasks || []} renderTaskDetail={(task, state) => <TaskDetails task={task} state={state} onInspectArtifact={myTasks?.inspectArtifact} onDeliverArtifact={myTasks?.deliverArtifact} />} /></div> : null}
           </section>
           {activeNav !== "automations" && safeProjection && (activeNav === "outputs" || !["accepted", "rejected"].includes(safeProjection.status)) ? <GroupDeliveryAcceptance key={`${activeRunId}:${safeProjection.delivery?.deliveryDigest || "pending"}`} projection={safeProjection} requester={groupApi?.acceptance} stale={Boolean(projectionError)} onOpenArtifacts={() => setActiveNav("outputs")} onProjection={projection => { setSafeProjection(projection); void refreshHistory(); }} /> : null}
-          {directEmployeeId && activeNav === "activity" ? <EmployeeTaskActivity employeeId={directEmployeeId} taskId={directTaskId} myTasks={myTasks} onSelect={setDirectTaskId} onOpenChat={() => setActiveNav("chat")} onOpenLink={async url => { if (desktopApi) await desktopApi.openExternal(url).catch(() => {}); }} /> : null}
+          {directEmployeeId && activeNav === "activity" ? <EmployeeTaskActivity employeeId={directEmployeeId} taskId={directTaskId} taskIds={taskSetKey ? taskSet?.children.map(item => item.taskId) || [] : null} taskSetTitle={taskSet?.source.title} taskSetLoadState={taskSet?.rules.some(rule => automationSources?.runDetails?.[rule.automationId]?.phase === "error") ? "error" : taskSet?.rules.some(rule => automationSources?.runDetails?.[rule.automationId]?.phase !== "ready") ? "loading" : "ready"} onRetryTaskSet={() => taskSet?.rules.forEach(rule => { void automationSources?.ensureRuns?.(rule.automationId, { retry: true }); })} onExitTaskSet={() => setTaskSetKey("")} myTasks={myTasks} onSelect={setDirectTaskId} onOpenChat={() => setActiveNav("chat")} onOpenLink={async url => { if (desktopApi) await desktopApi.openExternal(url).catch(() => {}); }} /> : null}
           {directEmployeeId && activeNav === "chat" ? <section className="group-employee-conversation employee-conversation-body" aria-label="员工任务信息流">{renderEmployeeConversation?.({ employeeId: directEmployeeId, assignmentControl, view: activeNav, onOpenChat: () => setActiveNav("chat") })}</section> : null}
           {!directEmployeeId && !["feed", "automations"].includes(activeNav) ? <GroupEntryPanel activeNav={activeNav} safeProjection={safeProjection} projectionError={projectionError} members={members} composer={composer} setComposer={setComposer} onSend={sendMessage} onStop={runCanStop ? () => controlRun("cancel") : stopPlanning} onInspectArtifact={inspectGroupArtifact} onDeliverArtifact={deliverGroupArtifact} onOpenDraft={openRoundDraft} displayHistory={displayHistory} displayHistoryLoading={displayHistoryLoading} displayHistoryError={displayHistoryError} pendingTurn={pendingTurn} canStop={Boolean((busy && planningCancelRef.current) || runCanStop)} stopping={["stopping", "confirmed"].includes(planningCancelState)} composerEnabled={composerEnabled} composerPlaceholder={composerPlaceholder} assignmentControl={assignmentControl} /> : null}
           {activeNav === "feed" ? <>

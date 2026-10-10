@@ -4,6 +4,7 @@ export const levelOptions = [
   { id: "all", label: "全部" },
   { id: "enterprise", label: "企业级" },
   { id: "business", label: "业务级" },
+  { id: "personal", label: "个人级" },
 ];
 
 function normalizeList(value) {
@@ -80,14 +81,17 @@ export function normalizeDigitalEmployeeFilters(filters = {}) {
 }
 
 export function digitalEmployeeLevel(employee = {}) {
-  return employee.level === "系统级" ? "enterprise" : "business";
+  if (employee.level === "系统级") return "enterprise";
+  return employee.serviceScope === "personal" ? "personal" : "business";
 }
 
 export function digitalEmployeeLevelLabel(employee = {}) {
+  if (digitalEmployeeLevel(employee) === "personal") return "个人级";
   return digitalEmployeeLevel(employee) === "enterprise" ? "企业级" : "业务级";
 }
 
 export function digitalEmployeeRuntimeTier(employee = {}) {
+  if (employee.serviceScope === "personal" && employee.permissionScope === "currentUser") return "个人 / 当前用户";
   if (employee.status === "待人员审批") return "受限 / 待审批";
   if (employee.permissionScope === "platformGovernance") return "管理层 / 专属治理";
   if (employee.departmentId === "rd" || employee.ownerDepartmentId === "rd") return "工程 / 沙箱";

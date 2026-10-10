@@ -5,7 +5,7 @@ const TASK_MATERIAL_BINDING_DESCRIPTOR_VERSION = "task-material-binding-descript
 const TASK_MATERIAL_BINDING_SET_CONTRACT_VERSION = "task-material-binding-set.v1";
 const DEVICE_WORKSPACE_INPUT_ADAPTER_ID = "device-workspace-input.v1";
 const DEVICE_WORKSPACE_INPUT_PAYLOAD_VERSION = "device-workspace-input-material-payload.v1";
-const SOURCE_KINDS = new Set(["channel_resource", "device_workspace_input", "predecessor_task_input", "reusable_artifact_grant"]);
+const SOURCE_KINDS = new Set(["channel_resource", "device_workspace_input", "predecessor_task_input", "approved_workspace_continuation", "reusable_artifact_grant"]);
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const HOST_PATH_PATTERN = /^(?:\/|~[\\/]|[A-Za-z]:[\\/]|\\\\)/;
@@ -84,6 +84,9 @@ function normalizeTaskMaterialBindingDescriptor(value) {
     sourceIdentityDigest: requiredDigest(value.sourceIdentityDigest, "sourceIdentityDigest"),
     expiresAt: requiredTimestamp(value.expiresAt, "expiresAt"),
   };
+  if (sourceKind === "approved_workspace_continuation" && normalized.adapterId !== "approved-workspace-continuation.v1") {
+    throw bindingError("task_material_binding_approved_workspace_adapter_invalid");
+  }
   if (sourceKind === "device_workspace_input" && normalized.adapterId !== DEVICE_WORKSPACE_INPUT_ADAPTER_ID) {
     throw bindingError("task_material_binding_device_workspace_adapter_invalid");
   }

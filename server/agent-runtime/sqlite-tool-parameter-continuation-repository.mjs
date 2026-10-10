@@ -11,6 +11,8 @@ import {
   toolParameterCardDraftForPersistence,
 } from "./tool-parameter-card.mjs";
 
+import { validateJsonValue } from "./openapi-contract.mjs";
+
 const REPOSITORY_CONTRACT_VERSION = "tool-parameter-continuation-repository.v1";
 
 function createSqliteToolParameterContinuationRepository({ databasePath, encryptionKey, now = () => Date.now(), ttlMs = DEFAULT_TOOL_PARAMETER_CONTINUATION_TTL_MS } = {}) {
@@ -82,11 +84,15 @@ function createSqliteToolParameterContinuationRepository({ databasePath, encrypt
       if (!agentManagedArgumentsMatch(record.card.argumentSchema, record.card.initialArguments, safeArguments)) {
         throw repositoryError("tool_parameter_card_agent_managed_argument_mismatch");
       }
+      if (record.card.toolId === "runtime-structured-input" && !validateJsonValue(record.card.argumentSchema, safeArguments).ok) {
+        throw repositoryError("tool_parameter_card_arguments_invalid");
+      }
       const continuation = {
         contractVersion: "tool-parameter-continuation.v1",
         cardId: safeCardId,
         toolId: record.card.toolId,
         operationId: record.card.operationId,
+        ...(record.card.requestKind ? { requestKind: record.card.requestKind } : {}),
         schemaDigest: safeSchemaDigest,
         arguments: safeArguments,
         ...selectionEvidenceForSubmission(record, safeArguments),

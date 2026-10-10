@@ -40,3 +40,43 @@
 @media(prefers-reduced-motion: reduce) { .subsystem-choice, .subsystem-choice-chevron { transition: none; } .subsystem-spinner { animation: none; } }
 
 .personal-cockpit .subsystem-choice > svg { color: var(--cockpit-accent); }
+.subsystem-personal-setup { margin: 14px 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--cockpit-hover); }
+.subsystem-personal-setup ol { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 12px; }
+.subsystem-personal-setup li { display: flex; align-items: flex-start; gap: 10px; }
+.subsystem-personal-setup li > span { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border-radius: 50%; color: var(--cockpit-accent); border: 1px solid var(--cockpit-line); font-size: 12px; }
+.subsystem-personal-setup strong { font-size: 12px; font-weight: 600; }
+.subsystem-personal-setup li p { margin: 4px 0 0; font-size: 12px; color: var(--cockpit-muted); line-height: 1.7; }
+.subsystem-personal-setup code { color: var(--cockpit-ink); overflow-wrap: anywhere; user-select: text; }
+.subsystem-personal-capabilities { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.subsystem-personal-capabilities > span { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--cockpit-line); color: var(--cockpit-ink); }
+.subsystem-personal-capabilities small { color: var(--cockpit-muted); font-size: 12px; margin-left: 4px; }
+
+.personal-cockpit .subsystem-more { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; background: transparent; color: var(--cockpit-accent); font-size: 12px; }
+.subsystem-heading > input { margin-left: auto; max-width: 220px; padding: 8px 12px; border: 1px solid var(--cockpit-line); border-radius: 8px; background: var(--cockpit-surface); color: var(--cockpit-ink); }
+.is-subsystem-page .subsystem-grid { grid-template-columns: 1fr; gap: 0; }
+.personal-cockpit .is-subsystem-page .subsystem-choice { min-height: 60px; flex-direction: row; padding: 10px 14px; gap: 16px; border-radius: 8px; border-bottom: 1px solid var(--cockpit-line); }
+.is-subsystem-page .subsystem-choice > svg:first-child { width: 24px; height: 24px; }
+.is-subsystem-page .subsystem-choice .subsystem-state { margin-left: auto; }
+.feishu-authorization h4 { margin: 0; font-size: 13px; }
+.feishu-authorization details { margin: 12px 0; color: var(--cockpit-muted); font-size: 12px; line-height: 1.7; }
+.feishu-authorization details > code { display: block; margin: 6px 0; }
+.feishu-permission-list { margin: 16px 0; display: grid; gap: 8px; }
+.feishu-permission-list label { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--cockpit-line); }
+.feishu-permission-list label > span { display: grid; gap: 3px; }
+.feishu-permission-list code { font-size: 11px; color: var(--cockpit-muted); }
+.feishu-permission-list small { margin-left: auto; color: var(--cockpit-muted); font-size: 12px; }
+.feishu-qr { display: flex; align-items: center; gap: 24px; margin: 16px 0; }
+.feishu-qr img { width: 180px; height: 180px; border-radius: 8px; background: white; }
+.feishu-qr p { font-size: 12px; color: var(--cockpit-muted); }
+.feishu-auth-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.feishu-auth-actions label { display: inline-flex; align-items: center; gap: 6px; color: var(--cockpit-muted); font-size: 12px; }
+.feishu-authorization a { margin-left: 8px; color: var(--cockpit-accent); }
+@media(max-width: 650px) { .feishu-permission-list label { flex-wrap: wrap; } .feishu-permission-list small { margin-left: 24px; } .feishu-qr { gap: 12px; } }
+
+.personal-cockpit .subsystem-personal-setup .feishu-step-progress { display: flex; flex-wrap: wrap; gap: 24px; margin: 14px 0; }
+.personal-cockpit .subsystem-personal-setup .feishu-step-progress li { display: flex; align-items: center; gap: 8px; }
+.feishu-status-light { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: #929da9; }
+.feishu-status-light[data-state="done"] { background: #27936d; }
+.feishu-status-light[data-state="current"] { background: #d79420; }
+.feishu-permission-list .feishu-status-light { margin-left: auto; margin-right: 4px; }
+.feishu-current-step { min-height: 100px; border-top: 1px solid var(--cockpit-line); padding-top: 4px; }

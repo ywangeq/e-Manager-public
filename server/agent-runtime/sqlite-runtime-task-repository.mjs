@@ -1,4 +1,5 @@
 import { createOpsTaskAnalyticsReader } from "./ops-task-analytics-reader.mjs";
+import { createDeviceReadAttemptRepository } from "./device-read-attempt-repository.mjs";
 import { createPersonalAutomationRepository, createPersonalAutomationSchema, ensurePersonalAutomationSchema, validatePersonalAutomationSchema } from "./personal-automation-repository.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -500,6 +501,7 @@ export function createSqliteExecutionTaskRepository({
   receiptEncryptionKey = null,
   personalAutomationSchemaPhase = "activate",
   workGoalContextSchemaPhase = "inactive",
+  deviceReadSchemaPhase = "inactive",
 } = {}) {
   if (!["prepare", "activate"].includes(personalAutomationSchemaPhase)) throw new TypeError("personal automation schema phase invalid");
   if (!["inactive", "prepare", "activate"].includes(workGoalContextSchemaPhase) ||
@@ -507,7 +509,7 @@ export function createSqliteExecutionTaskRepository({
   const safeDatabasePath = requiredDatabasePath(databasePath);
   if (safeDatabasePath !== ":memory:") fs.mkdirSync(path.dirname(safeDatabasePath), { recursive: true });
   const database = new DatabaseSync(safeDatabasePath);
-  let schemaVersion, receiptCipher, opsIncidentDiagnosisStore;
+  let schemaVersion, receiptCipher, opsIncidentDiagnosisStore, deviceReads;
   try {
     initializeDatabase(database, { efficiencyFingerprintKey, personalAutomationSchemaPhase });
     if (workGoalContextSchemaPhase !== "inactive") {
@@ -526,6 +528,8 @@ export function createSqliteExecutionTaskRepository({
     schemaVersion = database.prepare("SELECT version FROM execution_task_schema WHERE singleton=1").get().version;
     receiptCipher = createReceiptCipher(receiptEncryptionKey);
     opsIncidentDiagnosisStore = createOpsIncidentDiagnosisStore({ database, executionTaskError });
+    deviceReads = createDeviceReadAttemptRepository({ database, phase: deviceReadSchemaPhase,
+      readTask: readByTaskId, ownsLiveLease, normalizeLeaseIdentity, rollbackIfActive });
   } catch (error) {
     if (database.isOpen !== false) {
       try { database.close(); } catch (cleanupError) {
@@ -3375,6 +3379,7 @@ export function createSqliteExecutionTaskRepository({
   }) : null;
 
   return Object.freeze({
+    deviceReads,
     groups,
     workGoalBindings,
     personalAutomations,

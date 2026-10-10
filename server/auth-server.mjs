@@ -1,3 +1,6 @@
+import { createDeviceReadCenterServices } from "./agent-runtime/device-read-center-services.mjs";
+import { createDeviceReadRoutes } from "./device-read-routes.mjs";
+import { requireAdmissionTaskMatch } from "./digital-employee-chat/route-support.mjs";
 import { groupStudioRoleSkills } from "./group-studio-role-config.mjs";
 import { conciseWorkItemTitle } from "./work-item-display.mjs";
 import { groupPlanningInputSnapshot, readGroupPlanningInputSnapshot } from "./agent-runtime/group-planning-input-v1.mjs";
@@ -35,6 +38,7 @@ import {
   digitalEmployees,
   departmentGovernance,
   enterpriseTools,
+  enterpriseToolBuiltinMigrations,
   externalAuditRequests,
   personnel,
   preReviewWorkers as aiPreReviewWorkers,
@@ -644,6 +648,7 @@ const toolAssetRepository = createToolAssetRepository({
   validateReferences: toolConnectionAuthority.validateReferences,
 });
 toolAssetRepository.seedBuiltins(enterpriseTools);
+for (const migration of enterpriseToolBuiltinMigrations) toolAssetRepository.addBuiltins(migration);
 const toolAssetHandlers = createToolAssetHandlers({
   repository: toolAssetRepository, requireSession, readJsonBody, sendJson,
   connectionOptions: toolConnectionAuthority.options,
@@ -742,6 +747,7 @@ const taskArtifactService = createTaskArtifactService({
 });
 const artifactRetentionCleanupCoordinator = createArtifactRetentionCleanupCoordinator({
   artifactService: taskArtifactService,
+  cleanupExecutionContinuations: request => runtimeTaskPersistence.executionContinuationRepository.cleanupTerminalRecords(request),
 });
 const reusableArtifactMaterialService = createReusableArtifactMaterialService({
   taskArtifactService,
@@ -1151,6 +1157,7 @@ const desktopTaskArtifactStagingTransportHandlers = createDesktopTaskArtifactSta
   stagingService: desktopTaskArtifactStagingService,
 });
 const digitalEmployeeAccessHandlers = createDigitalEmployeeAccessHandlers({
+  getEnterpriseTools: () => toolAssetRepository.catalog(),
   registerDesktopPresenceDevice: input => desktopPresence.registerDevice(input),
   getDigitalEmployees: currentDigitalEmployees,
   getBusinessSkills: (options = {}) => [...basicSkills, ...(systemImportHandlers?.listRuntimeBusinessSkills?.(options) || businessSkills)],
@@ -1314,6 +1321,24 @@ const currentUserToolCredentialLeaseService = createCurrentUserToolCredentialLea
 const runtimeToolCapabilities = createRuntimeToolCapabilities({ projectRoot, assetRepository: toolAssetRepository,
   connectionAuthority: toolConnectionAuthority, feishuEmployeeAppTokenLeaseService, managedReferenceCatalogStore });
 const managedOpenApiTools = runtimeToolCapabilities.descriptors;
+const deviceReadServices = runtimeTaskPersistence.repository.deviceReads ? createDeviceReadCenterServices({
+  repository: runtimeTaskPersistence.repository, operations: runtimeToolCapabilities.deviceReadOperations(),
+  resolveActor: session => {
+    const route = resolveCenterSessionRoute({ session, channelId: "desktop", employeeId: "device-read" });
+    return { tenantScope: route.tenantScope, actorDigest: route.actorSubjectDigest };
+  },
+  resolveRecoverySession: async task => {
+    const admission = runtimeTaskService.readExecutionAdmission(task.taskId);
+    requireAdmissionTaskMatch(admission, task);
+    return resolveExecutionRecoverySession(admission.actorLocator, { sessionId: task.sessionId });
+  },
+  isPublished: entry => {
+    const current = toolAssetRepository.resolvePublished(entry.descriptor.toolId);
+    return current?.kind === "builtin" && current.assetRevision === entry.publicationRevision && current.catalog?.credentialMode === entry.descriptor.credentialMode;
+  },
+  isManagedHttpsRequest: managedHttpsRequest,
+}) : null;
+const deviceReadRoutes = createDeviceReadRoutes({ transport: deviceReadServices?.transport, requireSession, readJsonBody, sendJson });
 const validatePersistentFeishuCredentials = createFeishuCredentialValidator({ fetch: globalThis.fetch });
 const resolvePersistentFeishuCurrentUserProfile = createFeishuCurrentUserProfileResolver({
   fetch: globalThis.fetch,
@@ -1382,6 +1407,7 @@ const digitalEmployeeChatHandlers = createDigitalEmployeeChatHandlers({
   fxiaokeCrmCredentialStore,
   fxiaokeCrmServiceClient,
   idempotentEffectService: runtimeTaskPersistence.idempotentEffectService,
+  executionContinuationRepository: runtimeTaskPersistence.executionContinuationRepository,
   operationReceiptProjector: runtimeTaskPersistence.operationReceiptProjector,
   managedOpenApiTools,
   providerRequestQueue,
@@ -1414,6 +1440,8 @@ const digitalEmployeeChatHandlers = createDigitalEmployeeChatHandlers({
   getGroupExecutionContext: () => groupExecutionContext,
   getGroupTaskRepository: () => runtimeTaskPersistence.repository,
   sandboxExecPrepareService: desktopSandboxExecToolPrepareService,
+  deviceReadRuntimeTools: deviceReadServices?.tools,
+  bindDeviceReadTask: deviceReadServices?.bindTask,
   canInvokeDigitalEmployee: digitalEmployeeAccessHandlers.canInvoke,
 });
 
@@ -2093,6 +2121,7 @@ const server = (SERVER_TLS_OPTIONS ? https : http).createServer(SERVER_TLS_OPTIO
     if (await toolAssetHandlers.handle(req, res, url)) return;
 
     if (await desktopPresenceHandlers.handle(req,res,url)) return;
+    if (await deviceReadRoutes.handle(req, res, url)) return;
     await personalAutomationHandlers.handle(req,res,url);
     if (res.headersSent || res.writableEnded) return;
 
@@ -2453,6 +2482,7 @@ function shutdownCenter() {
   if (shutdownPromise) return shutdownPromise;
   shutdownPromise = (async () => {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    deviceReadServices?.close();
     await personalAutomationScanner.close();
     await scheduleRuntime.stop();
     const workerClose = runtimeTaskWorkerPump.close();

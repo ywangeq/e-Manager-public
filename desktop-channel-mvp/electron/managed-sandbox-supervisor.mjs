@@ -2,6 +2,9 @@ import { execFileSync, spawn } from "node:child_process";
 import path from "node:path";
 
 const HELPER_CONTRACT_VERSION = "managed-sandbox-helper.internal.v1";
+const EXEC_CONTRACT_VERSION = "managed-sandbox-helper.internal.v2";
+const MAX_PRIVATE_OUTPUT_BYTES = (32 * 1024 + 64) * 3; // UTF-8 replacement plus the bounded omission marker.
+const MAX_HELPER_RESPONSE_BYTES = 800 * 1024; // JSON escaping of two bounded pipes.
 const SAFE_RESULT_STATUSES = new Set(["canceled", "completed", "failed", "rejected", "timed_out", "unavailable"]);
 const MAX_COMMAND_LENGTH = 12_000;
 const MAX_TIMEOUT_MS = 60_000;
@@ -26,7 +29,22 @@ function createDesktopManagedSandboxSupervisor({
     return runHelper({ helperPath: resolvedHelperPath, request: normalized, signal, spawnProcess, terminateProcessTree });
   }
 
-  return Object.freeze({ executeTrustedRequest });
+  // Trusted main-process callers supply policy; renderer/model cannot set network access.
+  async function executePrivateRequest(request = {}, { signal = null } = {}) {
+    const fields = ["commandText", "timeoutMs", "workspaceRoot", "networkAccess"];
+    if (!request || Object.keys(request).length !== fields.length ||
+        !fields.every((field) => Object.hasOwn(request, field)) || typeof request.networkAccess !== "boolean") {
+      return safeResult("rejected");
+    }
+    const { networkAccess, ...base } = request;
+    const normalized = normalizeRequest(base);
+    if (!normalized || signal?.aborted) return safeResult(signal?.aborted ? "canceled" : "rejected");
+    return runHelper({ helperPath: resolvedHelperPath, request: {
+      ...normalized, command: ["/bin/sh", "-c", base.commandText],
+      contractVersion: EXEC_CONTRACT_VERSION, networkAccess,
+    }, signal, spawnProcess, terminateProcessTree });
+  }
+  return Object.freeze({ executeTrustedRequest, executePrivateRequest });
 }
 
 function normalizeRequest(value = {}) {
@@ -54,9 +72,13 @@ function runHelper({ helperPath, request, signal, spawnProcess, terminateProcess
     let settled = false;
     let output = "";
     let abortListener = null;
+    let watchdog = null;
+    const privateOutput = request.contractVersion === EXEC_CONTRACT_VERSION;
+    const maxResponseBytes = privateOutput ? MAX_HELPER_RESPONSE_BYTES : 512;
     const finish = (result) => {
       if (settled) return;
       settled = true;
+      clearTimeout(watchdog);
       if (abortListener && signal?.removeEventListener) signal.removeEventListener("abort", abortListener);
       resolve(result);
     };
@@ -73,9 +95,15 @@ function runHelper({ helperPath, request, signal, spawnProcess, terminateProcess
     child.once("error", () => finish(safeResult("unavailable")));
     child.stdout?.setEncoding?.("utf8");
     child.stdout?.on("data", (chunk) => {
-      if (output.length <= 512) output += String(chunk).slice(0, 513 - output.length);
+      if (Buffer.byteLength(output, "utf8") <= maxResponseBytes) output += String(chunk);
+      if (Buffer.byteLength(output, "utf8") > maxResponseBytes) {
+        terminateProcessTree(child);
+        finish(safeResult("unavailable"));
+      }
     });
-    child.once("exit", (code) => finish(code === 0 ? parseSafeResult(output) : safeResult("unavailable")));
+    child.once("close", (code) => finish(code === 0 ? parseSafeResult(output, privateOutput) : safeResult("unavailable")));
+    // Bound failures in the helper itself as well as its sandboxed command.
+    watchdog = setTimeout(() => { terminateProcessTree(child); finish(safeResult("timed_out")); }, request.timeoutMs + 2_000);
     if (signal?.addEventListener) {
       abortListener = () => {
         terminateProcessTree(child);
@@ -144,9 +172,20 @@ function terminateProcessIds(processIds, signal) {
   }
 }
 
-function parseSafeResult(value = "") {
+function parseSafeResult(value = "", privateOutput = false) {
   try {
     const result = JSON.parse(String(value || ""));
+    if (privateOutput) {
+      const fields = ["contractVersion", "status", "stdout", "stderr", "outputTruncated"];
+      if (!result || result.contractVersion !== EXEC_CONTRACT_VERSION || !SAFE_RESULT_STATUSES.has(result.status) ||
+          !fields.every((field) => Object.hasOwn(result, field)) ||
+          Object.keys(result).some((field) => ![...fields, "exitCode"].includes(field)) ||
+          typeof result.stdout !== "string" || typeof result.stderr !== "string" ||
+          Buffer.byteLength(result.stdout) > MAX_PRIVATE_OUTPUT_BYTES || Buffer.byteLength(result.stderr) > MAX_PRIVATE_OUTPUT_BYTES ||
+          typeof result.outputTruncated !== "boolean" ||
+          (Object.hasOwn(result, "exitCode") && (!Number.isInteger(result.exitCode) || result.exitCode < 0 || result.exitCode > 255))) return safeResult("unavailable");
+      return Object.freeze(result);
+    }
     if (!result || typeof result !== "object" || Array.isArray(result) || Object.keys(result).length !== 2 ||
       result.contractVersion !== HELPER_CONTRACT_VERSION || !SAFE_RESULT_STATUSES.has(result.status)) {
       return safeResult("unavailable");
@@ -161,4 +200,4 @@ function safeResult(status) {
   return Object.freeze({ contractVersion: HELPER_CONTRACT_VERSION, status });
 }
 
-export { HELPER_CONTRACT_VERSION, createDesktopManagedSandboxSupervisor };
+export { EXEC_CONTRACT_VERSION, HELPER_CONTRACT_VERSION, createDesktopManagedSandboxSupervisor };

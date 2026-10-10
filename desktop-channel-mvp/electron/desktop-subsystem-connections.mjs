@@ -4,7 +4,7 @@ const CONTRACT = "desktop-subsystem-connections.v1";
 const STATES = new Set(["connected", "authenticated", "disconnected", "expired", "checking", "verification_required", "account_blocked", "not_configured", "unavailable", "unknown", "on_demand"]);
 const ACTIONS = new Set(["connect", "check", "disconnect"]);
 
-export function createDesktopSubsystemConnections({ actorContext, isExpectedActor, adapters = new Map(), notify = () => {} }) {
+export function createDesktopSubsystemConnections({ actorContext, isExpectedActor, adapters = new Map(), personalConnectionIds = [], notify = () => {} }) {
   let catalog = [];
   let revision = 0;
   let timer = null;
@@ -21,7 +21,15 @@ export function createDesktopSubsystemConnections({ actorContext, isExpectedActo
 
   function configure(employees) {
     clear();
-    catalog = subsystemConnectionsFromEmployees(employees);
+    catalog = subsystemConnectionsFromEmployees(employees, new Map([...adapters].map(([id, adapter]) => [id, adapter.credentialMode])));
+    // Account association is independent of employee Tool grants. Only installed
+    // authentication-only adapters may be discovered without an employee binding.
+    for (const id of personalConnectionIds) {
+      const adapter = adapters.get(id);
+      if (adapter?.associationOnly === true && !catalog.some(connection => connection.id === id)) {
+        catalog.push({ id, name: adapter.name, credentialMode: adapter.credentialMode, employees: [] });
+      }
+    }
     timer = setInterval(() => { void checkAll(); }, 5 * 60_000);
     timer.unref?.();
   }
@@ -45,6 +53,7 @@ export function createDesktopSubsystemConnections({ actorContext, isExpectedActo
         employees: connection.employees,
         state: safeState,
         renewal: adapter?.renewal || "unknown",
+        associationOnly: connection.credentialMode === "device_local_cli",
         actions: state.actionsEnabled === false ? [] : actions,
         authenticatedAt: safeDate(state.authenticatedAt),
         checkedAt: safeDate(state.checkedAt),

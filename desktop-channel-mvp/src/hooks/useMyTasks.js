@@ -33,6 +33,7 @@ export function useMyTasks(desktopApi, {
   const identityRef = useRef("");
   const actorIdentityRef = useRef("");
   const detailEpochRef = useRef(new Map());
+  const detailSequenceRef = useRef(0);
   const detailTargetRevisionRef = useRef(new Map());
   const listRequestSequenceRef = useRef(0);
   const listRefreshStateRef = useRef({ actorIdentity: "", inFlight: null, trailing: false });
@@ -80,6 +81,12 @@ export function useMyTasks(desktopApi, {
       return next.size === current.size ? current : next;
     });
     const taskIds = new Set(result.page.tasks.map((task) => task.id));
+    const taskKeys = new Set(result.page.tasks.map(detailKey));
+    for (const cache of [detailEpochRef.current, detailTargetRevisionRef.current]) {
+      for (const key of cache.keys()) if (!taskKeys.has(key)) cache.delete(key);
+    }
+    setFeedbackStates(current => currentListRequest(requestActorIdentity, requestSequence)
+      ? Object.fromEntries(Object.entries(current).filter(([id]) => taskIds.has(id))) : current);
     const terminalStaleTasks = result.page.tasks.filter((task) => {
       const current = detailsRef.current[task.id];
       return taskNeedsCanonicalDetail(current, task, detailTargetRevisionRef.current.get(detailKey(task)));
@@ -201,7 +208,7 @@ export function useMyTasks(desktopApi, {
     const taskKey = detailKey(task);
     const targetRevision = Number(task.revision || 0);
     if (targetRevision > 0) detailTargetRevisionRef.current.set(taskKey, targetRevision);
-    const detailEpoch = bumpDetailEpoch(detailEpochRef.current, task);
+    const detailEpoch = bumpDetailEpoch(detailEpochRef.current, task, ++detailSequenceRef.current);
     const currentRead = () => actorIdentityRef.current === requestActorIdentity &&
       detailEpochRef.current.get(detailKey(task)) === detailEpoch;
     setDetails((current) => ({
@@ -481,9 +488,8 @@ function detailKey(task = {}) {
   return `${String(task.employeeId || "")}:${String(task.id || task.taskId || "")}`;
 }
 
-function bumpDetailEpoch(epochs, task) {
+function bumpDetailEpoch(epochs, task, next) {
   const key = detailKey(task);
-  const next = Number(epochs.get(key) || 0) + 1;
   epochs.set(key, next);
   return next;
 }

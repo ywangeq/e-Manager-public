@@ -135,9 +135,9 @@ function createCanonicalRuntimeTaskService({
       });
     }
     if (commitSubmission !== null && typeof commitSubmission !== "function") throw serviceError("runtime_task_submission_commit_invalid");
-    const result = commitSubmission ? commitSubmission(submission) : executionTaskRepository.submitOrGet(submission);
+    const result = commitSubmission ? commitSubmission(submission, () => executionTaskRepository.submitOrGet(submission)) : executionTaskRepository.submitOrGet(submission);
     if (!result?.task) throw serviceError("runtime_task_submission_fenced");
-    beforeWorkerWake?.(result.task);
+    beforeWorkerWake?.(result.task, Object.freeze({ created: result.created === true }));
     workerPump.wake?.();
     return projectTask(result.task, { employeeName: employee.name || employee.displayName });
   }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowClockwise, ArrowRight, CalendarDots, CheckCircle, CirclesFour, Clock,
-  ListChecks, Minus, Plus, SignOut, Sparkle, SpinnerGap, WarningCircle, FolderOpen,
+  ListChecks, Minus, Plus, SignOut, Sparkle, SpinnerGap, WarningCircle, FolderOpen, PlugsConnected,
 } from "@phosphor-icons/react";
 import { CockpitTaskWorkspace } from "./CockpitTaskWorkspace.jsx";
 import { CockpitClock } from "./CockpitClock.jsx";
@@ -9,6 +9,7 @@ import { CockpitMetricCard } from "./CockpitMetricCard.jsx";
 import { CockpitEmployeeStack } from "./CockpitEmployeeStack.jsx";
 import { CockpitGroupParticipants } from "./CockpitGroupParticipants.jsx";
 import { CockpitContentWorkspace } from "./CockpitContentWorkspace.jsx";
+import { useSubsystemConnections } from "../hooks/useSubsystemConnections.js";
 import { SubsystemConnections } from "./SubsystemConnections.jsx";
 import { CockpitSentinel } from "./CockpitSentinel.jsx";
 import { useCockpitSentinelState } from "../hooks/useCockpitSentinelState.js";
@@ -22,6 +23,7 @@ import { cockpitStatusTone } from "../lib/cockpitStatusTone.js";
 import { useCockpitMotion } from "../lib/useCockpitMotion.js";
 import { employeeCharacterFor } from "../data/employeeCharacters.js";
 import { createAutomationRunReadCache } from "../lib/automationRunReadCache.js";
+import { useCockpitLayout } from "../hooks/useCockpitLayout.js";
 import "./personal-cockpit.css";
 
 
@@ -40,13 +42,13 @@ function intervalLabel(seconds) {
 }
 
 export function useCockpitSources(desktopApi, authenticated, enabled = true) {
-  const [sources, setSources] = useState({ goals: [], automations: [], goalPhase: "loading", automationPhase: "loading" });
+  const [sources, setSources] = useState({ goals: [], automations: [], interactions: [], interactionPhase: "loading", goalPhase: "loading", automationPhase: "loading" });
   const [revision, setRevision] = useState(0);
   const refreshRef = useRef(() => {});
   const runCacheRef = useRef(null);
   const [runDetails, setRunDetails] = useState({});
   useEffect(() => {
-    setSources({ goals: [], automations: [], goalPhase: "loading", automationPhase: "loading" });
+    setSources({ goals: [], automations: [], interactions: [], interactionPhase: "loading", goalPhase: "loading", automationPhase: "loading" });
   }, [desktopApi, authenticated]);
   useEffect(() => {
     if (!authenticated) return undefined;
@@ -74,6 +76,7 @@ export function useCockpitSources(desktopApi, authenticated, enabled = true) {
       };
       if (enabled) settle("goals", "goalPhase", () => desktopApi?.groupStudio?.history?.(), "items");
       settle("automations", "automationPhase", () => desktopApi?.personalAutomations?.({ action: "list" }), "automations");
+      settle("interactions", "interactionPhase", () => desktopApi?.getPendingInteractions?.(), "interactions");
     }
     refreshRef.current = refresh;
     refresh();
@@ -82,7 +85,7 @@ export function useCockpitSources(desktopApi, authenticated, enabled = true) {
     return () => { current = false; runCache.dispose(); if (runCacheRef.current === runCache) runCacheRef.current = null; refreshRef.current = () => {}; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [desktopApi, authenticated, enabled]);
   return {
-    ...(authenticated ? sources : { goals: [], automations: [], goalPhase: "idle", automationPhase: "idle" }),
+    ...(authenticated ? sources : { goals: [], automations: [], interactions: [], interactionPhase: "loading", goalPhase: "idle", automationPhase: "idle" }),
     refresh: () => { refreshRef.current(); setRevision((value) => value + 1); },
     refreshRevision: revision,
     runDetails: authenticated ? runDetails : {},
@@ -133,8 +136,12 @@ function PreviewGroupWorkspace({ onBack }) {
   return <div className="cockpit-workbench-preview"><header><button type="button" onClick={onBack}>返回驾驶舱</button><span>Group Studio 3.0 · 工作台结构预览</span></header><div><span>目标与计划</span><span>Group 成员与依赖</span><span>执行与复核</span></div><p>此页仅展示入口位置。浏览器预览没有 Group 授权连接，无法创建目标或执行；已登录的 Desktop 会打开原工作台。</p></div>;
 }
 
-export function PersonalCockpit({ expanded = true, authenticated, actor, authError, onLogin, onLogout, desktopApi, employees = [], bootstrapReady, catalogPhase = "idle", onRefreshCatalog, myTasks, onOpenEmployeeConversation = null, onSelectEmployeeConversation = null, renderEmployeeConversation = null, employeeConversationState = null }) {
+export function PersonalCockpit({ expanded = true, displayVersion = "", authenticated, actor, authError, onLogin, onLogout, desktopApi, employees = [], bootstrapReady, catalogPhase = "idle", onRefreshCatalog, myTasks, onOpenEmployeeConversation = null, onSelectEmployeeConversation = null, renderEmployeeConversation = null, employeeConversationState = null }) {
   const [screen, setScreen] = useState("overview");
+  const connections = useSubsystemConnections(desktopApi, authenticated && bootstrapReady);
+  const [selectedConnectionId, setSelectedConnectionId] = useState("");
+  const openSubsystems = (id = "") => { setSelectedConnectionId(id); setScreen("subsystems"); };
+  const layout = useCockpitLayout(expanded && authenticated && screen === "overview");
   const [taskFilter, setTaskFilter] = useState("active");
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [selectedAutomation, setSelectedAutomation] = useState(null);
@@ -144,7 +151,7 @@ export function PersonalCockpit({ expanded = true, authenticated, actor, authErr
   const sources = useCockpitSources(desktopApi, authenticated, screen !== "group");
   const sentinelPresentation = useCockpitSentinelState({ authenticated, taskPhase: myTasks.phase, tasks: myTasks.page.tasks, sources });
   const overview = useMemo(() => cockpitOverview({ tasks: myTasks.page.tasks, automations: sources.automations, goals: sources.goals }), [myTasks.page, sources.automations, sources.goals]);
-  const attention = useMemo(() => cockpitAttention({ tasks: myTasks.phase === "error" ? [] : myTasks.page.tasks, goals: sources.goals, automations: sources.automations }), [myTasks.page, myTasks.phase, sources.goals, sources.automations]);
+  const attention = useMemo(() => cockpitAttention({ tasks: myTasks.phase === "error" ? [] : myTasks.page.tasks, goals: sources.goals, automations: sources.automations, interactions: sources.interactions }), [myTasks.page, myTasks.phase, sources.goals, sources.automations, sources.interactions]);
   const availableEmployees = authenticated && desktopApi && bootstrapReady
     ? employees.filter((employee, index) => employee.id && employee.access?.selectable === true && employee.access?.callable === true && employees.findIndex(other => other.id === employee.id) === index)
     : null;
@@ -159,8 +166,8 @@ export function PersonalCockpit({ expanded = true, authenticated, actor, authErr
   const openGoal = (goalId = "") => { setSelectedGoalId(goalId); setScreen("group"); };
   const taskUnavailable = myTasks.phase === "error";
   const loadingTasks = myTasks.phase === "idle" || myTasks.phase === "loading";
-  const loadingSources = sources.goalPhase === "loading" || sources.automationPhase === "loading";
-  const missingSources = sources.goalPhase === "error" || sources.automationPhase === "error" || taskUnavailable;
+  const loadingSources = sources.goalPhase === "loading" || sources.automationPhase === "loading" || sources.interactionPhase === "loading";
+  const missingSources = sources.goalPhase === "error" || sources.automationPhase === "error" || sources.interactionPhase === "error" || taskUnavailable;
 
   if (!expanded && desktopApi) return <div className="cockpit-desktop-sentinel" aria-label="桌面值守"><CockpitSentinel compact desktopApi={desktopApi} presentation={sentinelPresentation} authenticated={authenticated} taskPhase={myTasks.phase} tasks={myTasks.page.tasks} sources={sources} onOpen={() => {setScreen("overview");void desktopApi.setExpanded?.(true);}} /></div>;
 
@@ -168,41 +175,43 @@ export function PersonalCockpit({ expanded = true, authenticated, actor, authErr
     return <div className="cockpit-group-workspace">{desktopApi ? <ProjectGroupWorkspace automationSources={sources} myTasks={myTasks} onSelectEmployeeConversation={onSelectEmployeeConversation} renderEmployeeConversation={renderEmployeeConversation} employeeConversationState={employeeConversationState} onOpenEmployeeConversation={onOpenEmployeeConversation} key={selectedGoalId || "new"} desktopApi={desktopApi} employees={employees} bootstrapReady={bootstrapReady} authenticated={authenticated} initialGoalId={selectedGoalId} onCollapse={() => desktopApi?.setExpanded?.(false)} onBack={() => { setScreen("overview"); sources.refresh(); void myTasks.refresh(); }} /> : <PreviewGroupWorkspace onBack={() => setScreen("overview")} />}</div>;
   }
 
-  return <main className={`personal-cockpit${screen !== "overview" ? " is-workspace-view" : ""}`}>
+  return <main ref={layout.rootRef} className={`personal-cockpit${screen !== "overview" ? " is-workspace-view" : ""}`}>
     <aside className="cockpit-sidebar" aria-label="个人工作区导航">
-      <div className="cockpit-brand"><span className="cockpit-brand-icon"><Sparkle size={22} weight="fill" /></span><span><strong>Group Studio</strong><small>个人工作空间</small></span></div>
+      <div className="cockpit-brand"><span className="cockpit-brand-icon"><Sparkle size={22} weight="fill" /></span><span><strong>Group Studio</strong><small>个人工作空间{displayVersion ? ` · ${displayVersion}` : ""}</small></span></div>
       <div className="cockpit-nav-label">工作台</div>
       <nav>
         <button type="button" aria-label="驾驶舱" aria-current={screen === "overview" ? "page" : undefined} title="驾驶舱" className={screen === "overview" ? "is-active" : ""} onClick={() => setScreen("overview")}><CirclesFour size={18} aria-hidden="true" />驾驶舱</button>
         <button type="button" aria-label="我的任务" aria-current={screen === "tasks" && taskFilter !== "automations" ? "page" : undefined} title="我的任务" className={screen === "tasks" && taskFilter !== "automations" ? "is-active" : ""} onClick={() => openTasks()} disabled={!authenticated}><ListChecks size={18} aria-hidden="true" />我的任务</button>
         <button type="button" aria-label="我的内容" aria-current={screen === "content" ? "page" : undefined} title="我的内容" className={screen === "content" ? "is-active" : ""} onClick={() => setScreen("content")} disabled={!authenticated}><FolderOpen size={18} aria-hidden="true" />我的内容</button>
         <button type="button" aria-label="定时任务" aria-current={screen === "tasks" && taskFilter === "automations" ? "page" : undefined} title="定时任务" className={screen === "tasks" && taskFilter === "automations" ? "is-active" : ""} onClick={() => openTasks("automations")} disabled={!authenticated}><CalendarDots size={18} aria-hidden="true" />定时任务</button>
+        <button type="button" aria-label="子系统" title="子系统" aria-current={screen === "subsystems" ? "page" : undefined} className={screen === "subsystems" ? "is-active" : ""} disabled={!authenticated} onClick={() => openSubsystems()}><PlugsConnected size={18} aria-hidden="true" />子系统</button>
         <button type="button" aria-label="Group Studio 工作台" title="Group Studio 工作台" onClick={() => openGoal()} disabled={!authenticated}><Sparkle size={18} aria-hidden="true" />Group 工作台 <ArrowRight size={14} aria-hidden="true" /></button>
       </nav>
       <div className="cockpit-sidebar-footer" />
     </aside>
+    {authenticated && screen === "overview" ? <div className="cockpit-resizer is-left" {...layout.separator("left")} /> : null}
     <div className="cockpit-main">
-      <header className="cockpit-topbar"><div><span className="cockpit-online-dot" aria-hidden="true" />{authenticated ? "当前账号的工作概览" : "登录后查看个人工作"}</div><div className="cockpit-top-actions">{desktopApi ? <><MaximizeButton desktopApi={desktopApi} /><button type="button" aria-label="收起到桌面值守" title="收起到桌面值守" onClick={() => desktopApi.setExpanded?.(false)}><Minus size={18} /></button></> : null}<button type="button" title="刷新概览" aria-label="刷新概览" onClick={() => { sources.refresh(); void myTasks.refresh(); void onRefreshCatalog?.(); }} disabled={!authenticated}><ArrowClockwise size={18} /></button><span className="cockpit-profile">{actor?.name || "企业用户"}</span>{authenticated ? <button type="button" title="退出登录" aria-label="退出登录" onClick={onLogout}><SignOut size={18} /></button> : null}</div></header>
+      <header className="cockpit-topbar"><div><span className="cockpit-online-dot" aria-hidden="true" />{authenticated ? "当前账号的工作概览" : "登录后查看个人工作"}{displayVersion ? ` · ${displayVersion}` : ""}</div><div className="cockpit-top-actions">{desktopApi ? <><MaximizeButton desktopApi={desktopApi} /><button type="button" aria-label="收起到桌面值守" title="收起到桌面值守" onClick={() => desktopApi.setExpanded?.(false)}><Minus size={18} /></button></> : null}<button type="button" title="刷新概览" aria-label="刷新概览" onClick={() => { sources.refresh(); void myTasks.refresh(); void onRefreshCatalog?.(); }} disabled={!authenticated}><ArrowClockwise size={18} /></button><span className="cockpit-profile">{actor?.name || "企业用户"}</span>{authenticated ? <button type="button" title="退出登录" aria-label="退出登录" onClick={onLogout}><SignOut size={18} /></button> : null}</div></header>
       {!authenticated ? <div className="cockpit-auth"><div><span className="cockpit-eyebrow">PERSONAL WORKSPACE</span><h1>先确认你的企业身份</h1><p>登录后汇总当前用户可见的任务、定时任务与 Group 目标；不同来源无法读取时分别说明。</p><button type="button" className="cockpit-primary" onClick={onLogin}>企业认证登录 <ArrowRight size={17} /></button>{authError ? <p role="alert">{authError}</p> : null}</div></div> : <div className="cockpit-scroll" ref={scrollRef}>
-        {screen === "content" ? <div className="cockpit-task-view"><div className="cockpit-heading"><h1>我的内容</h1><CockpitClock compact /></div><CockpitContentWorkspace sources={sources} myTasks={myTasks} employees={availableEmployees || []} desktopApi={desktopApi} onOpenGoal={openGoal} onOpenTask={taskId => openTasks("all", null, taskId)} /></div> : screen === "tasks" ? <div className="cockpit-task-view">
-          <div className="cockpit-heading"><div><span className="cockpit-eyebrow">GROUP STUDIO / WORK QUEUE</span><h1>{taskFilter === "automations" ? "定时任务" : "我的任务"}</h1><p>{taskFilter === "automations" ? "查看当前账号的定时定义；执行时刻与运行记录以 Center 为准。" : "按事项跟进进度、处理阻塞并查看交付；协作步骤在目标详情展开。"}</p></div><CockpitClock /></div>
+        {screen === "subsystems" ? <div className="cockpit-task-view"><div className="cockpit-heading"><div><h1>子系统</h1><p>连接你的工作账号，查看认证和权限状态。</p></div><CockpitClock compact /></div><SubsystemConnections source={connections} desktopApi={desktopApi} initialSelectedId={selectedConnectionId} /></div> : screen === "content" ? <div className="cockpit-task-view"><div className="cockpit-heading"><h1>我的内容</h1><CockpitClock compact /></div><CockpitContentWorkspace sources={sources} myTasks={myTasks} employees={availableEmployees || []} desktopApi={desktopApi} onOpenGoal={openGoal} onOpenTask={taskId => openTasks("all", null, taskId)} /></div> : screen === "tasks" ? <div className="cockpit-task-view">
+          <div className="cockpit-heading"><div><span className="cockpit-eyebrow">GROUP STUDIO / WORK QUEUE</span><h1>{taskFilter === "automations" ? "定时任务" : "我的任务"}</h1>{taskFilter !== "automations" ? <p>按事项跟进进度、处理阻塞并查看交付；协作步骤在目标详情展开。</p> : null}</div><CockpitClock /></div>
           {!desktopApi ? <div className="cockpit-preview-note">本地交互预览：Runtime 任务为演示；Group 与定时来源未连接，不会伪造记录。</div> : null}
-          <CockpitTaskWorkspace myTasks={myTasks} sources={sources} desktopApi={desktopApi} filter={taskFilter} onFilter={(filter) => openTasks(filter)} selectedTaskId={selectedTaskId} onSelectTask={setSelectedTaskId} selectedAutomation={selectedAutomation} onOpenGoal={openGoal} onOpenAutomation={(item) => openTasks("automations", item)} />
+          <CockpitTaskWorkspace myTasks={myTasks} sources={sources} desktopApi={desktopApi} filter={taskFilter} onFilter={(filter) => openTasks(filter)} selectedTaskId={selectedTaskId} onSelectTask={setSelectedTaskId} selectedAutomation={selectedAutomation} onOpenGoal={openGoal} onOpenInteraction={(item) => onOpenEmployeeConversation?.({employeeId:item.employeeId,interactionId:item.id})} onOpenAutomation={(item) => openTasks("automations", item)} />
         </div> : <>
         <div className="cockpit-heading"><div><div className="cockpit-product-name"><Sparkle size={22} aria-hidden="true" /><strong>Group Studio</strong></div><h1>个人驾驶舱</h1><CockpitClock compact /></div><button type="button" className="cockpit-primary" onClick={() => openGoal()}><Plus size={18} aria-hidden="true" />{desktopApi ? "新建目标" : "查看工作台布局"}</button></div>
         <div className="cockpit-overview-time"><div className="cockpit-employee-count"><span role="status">可用员工 <strong>{availableEmployeeCount ?? "—"}</strong>{availableEmployeeCount === null ? <small>{catalogPhase === "error" ? "暂时无法获取" : desktopApi ? "正在同步" : "未连接"}</small> : null}</span>{availableEmployees ? <CockpitEmployeeStack employees={availableEmployees} /> : null}</div></div>
         {!desktopApi ? <div className="cockpit-preview-note">交互预览数据：任务为本地演示，Group 目标及定时任务没有真实连接。</div> : null}
         <div className="cockpit-stats" aria-label="工作概览指标">
-          <CockpitMetricCard data-tone="attention" onClick={() => openTasks("attention")}><span>待我处理</span><strong>{missingSources || loadingSources || loadingTasks ? "—" : attention.length}</strong><small>{missingSources ? "部分来源不可用" : "确认计划、检查交付与处理异常"}</small><i className="cockpit-stat-icon" aria-hidden="true"><WarningCircle size={26} /></i></CockpitMetricCard>
+          <CockpitMetricCard data-tone="attention" onClick={() => openTasks("attention")}><span>待我处理</span><strong>{missingSources || loadingSources || loadingTasks ? "—" : attention.length}</strong><small>{missingSources ? "部分来源不可用" : "审批、确认计划与验收交付"}</small><i className="cockpit-stat-icon" aria-hidden="true"><WarningCircle size={26} /></i></CockpitMetricCard>
           <CockpitMetricCard data-tone="active" onClick={() => openTasks("active")}><span>正在执行</span><strong>{taskUnavailable || loadingTasks || sources.goalPhase !== "ready" ? "—" : overview.runningTasks.length + overview.runningGoals.length}</strong><small>当前页进行中的事项</small><i className="cockpit-stat-icon" aria-hidden="true"><SpinnerGap size={26} /></i></CockpitMetricCard>
           <CockpitMetricCard data-tone="neutral" onClick={() => openTasks("queued")}><span>排队等待</span><strong>{taskUnavailable || loadingTasks || sources.goalPhase !== "ready" ? "—" : overview.queuedTasks.length}</strong><small>查看队列与执行顺序</small><i className="cockpit-stat-icon" aria-hidden="true"><Clock size={26} /></i></CockpitMetricCard>
           <CockpitMetricCard data-tone="success" onClick={() => openTasks("recent")}><span>最近完成</span><strong>{taskUnavailable || loadingTasks || sources.goalPhase !== "ready" ? "—" : overview.completedTasks.length + overview.acceptedGoals.length}</strong><small>当前页已完成任务 · 查看结果</small><i className="cockpit-stat-icon" aria-hidden="true"><CheckCircle size={26} /></i></CockpitMetricCard>
         </div>
-        <SubsystemConnections desktopApi={desktopApi} enabled={authenticated && bootstrapReady} />
+        <SubsystemConnections source={connections} compact onOpen={openSubsystems} />
         <div className="cockpit-columns"><div className="cockpit-primary-column">
           <Section title="待我处理" action={<button type="button" className="cockpit-text-link" onClick={() => openTasks("attention")}>全部待办 <ArrowRight size={14} aria-hidden="true" /></button>}>
             {missingSources ? <p className="cockpit-source-error"><WarningCircle size={17} />部分来源暂不可用，请刷新后查看。</p> : null}
-            {attention.slice(0, 3).map((entry) => { const recordTime = cockpitRecordTime(entry); return <button className="cockpit-attention-row" data-tone={cockpitStatusTone(entry.kind === "goal" ? cockpitGoalStatus(entry.item) : entry.kind === "automation" ? entry.item.state : entry.item.status)} key={entry.key} type="button" onClick={() => entry.kind === "goal" ? openGoal(entry.item.goalId) : entry.kind === "automation" ? openTasks("automations", entry.item) : openTasks("attention", null, entry.item.id)}><span className="cockpit-row-icon"><WarningCircle size={18} /></span><span><strong>{entry.title}</strong><small>{entry.reason}</small>{recordTime ? <time dateTime={recordTime.value}>{recordTime.label} {compactTime(recordTime.value)}</time> : <small>记录时间暂不可用</small>}</span><span className="cockpit-attention-action">{entry.action}<ArrowRight size={17} aria-hidden="true" /></span></button>; })}
+            {attention.slice(0, 3).map((entry) => { const recordTime = cockpitRecordTime(entry); return <button className="cockpit-attention-row" data-tone={cockpitStatusTone(entry.kind === "goal" ? cockpitGoalStatus(entry.item) : entry.kind === "automation" ? entry.item.state : entry.item.status)} key={entry.key} type="button" onClick={() => entry.kind === "interaction" ? onOpenEmployeeConversation?.({employeeId:entry.item.employeeId,interactionId:entry.item.id}) : entry.kind === "goal" ? openGoal(entry.item.goalId) : entry.kind === "automation" ? openTasks("automations", entry.item) : openTasks("attention", null, entry.item.id)}><span className="cockpit-row-icon"><WarningCircle size={18} /></span><span><strong>{entry.title}</strong><small>{entry.reason}</small>{recordTime ? <time dateTime={recordTime.value}>{recordTime.label} {compactTime(recordTime.value)}</time> : <small>记录时间暂不可用</small>}</span><span className="cockpit-attention-action">{entry.action}<ArrowRight size={17} aria-hidden="true" /></span></button>; })}
             {!attention.length && !missingSources && !loadingSources && !loadingTasks ? <Empty>当前没有需要你处理的事项。</Empty> : null}
             {!attention.length && (loadingSources || loadingTasks) ? <Empty>正在核对需要你处理的事项…</Empty> : null}
           </Section>
@@ -228,6 +237,7 @@ export function PersonalCockpit({ expanded = true, authenticated, actor, authErr
         </>}
       </div>}
     </div>
+    {authenticated && screen === "overview" ? <div className="cockpit-resizer is-right" {...layout.separator("right")} /> : null}
     {authenticated && screen === "overview" ? <TaskActivityRail sources={sources} myTasks={myTasks} employees={bootstrapReady ? employees : []} onOpenGoal={openGoal} onOpenTasks={openTasks} /> : null}
   </main>;
 }

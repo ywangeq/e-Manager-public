@@ -163,7 +163,7 @@ export function readJsonBody(req, maxBytes = 32 * 1024) {
     req.setEncoding("utf8");
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > maxBytes) {
+      if (Buffer.byteLength(body, "utf8") > maxBytes) {
         reject(new Error("Request body too large"));
         req.destroy();
       }

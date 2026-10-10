@@ -3,6 +3,7 @@ import { conciseWorkItemTitle } from "./work-item-display.mjs";
 import { normalizedOutputFormat } from "./agent-runtime/agent-output-format.mjs";
 import { createPersonalAutomationTool } from "./personal-automation-tool.mjs";
 import crypto from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { isSameDigitalEmployeeIdentity } from "./digital-employee-identity-compatibility.mjs";
 import { digitalEmployeeResponseInstructions } from "./agent-runtime/digital-employee-agent-prompt.mjs";
 import { createDigitalEmployeeAgentExecutionService } from "./agent-runtime/digital-employee-agent-execution-service.mjs";
@@ -25,11 +26,13 @@ import {
   fxiaokeCrmCredentialsConfigured,
   readFxiaokeCrmCredentials,
 } from "./agent-runtime/fxiaoke-crm-readonly-tool-executor.mjs";
+import { constrainProviderTimeoutPolicy } from "./agent-runtime/provider-timeout-policy.mjs";
+import { confirmationContext, confirmationSubmissionStatus, createAcceptedExecutionVerifier, findConfirmationTask } from "./digital-employee-chat/tool-confirmation-admission.mjs";
 import { createToolCallConfirmationService } from "./agent-runtime/tool-call-confirmation-service.mjs";
 import { createDesktopMaterialIntakeService } from "./agent-runtime/desktop-material-intake-service.mjs";
 import { createTaskMaterialSetRecoveryService } from "./agent-runtime/task-material-set-recovery-service.mjs";
 import { createTaskInputForkMaterialAdapter } from "./agent-runtime/task-input-fork-material-adapter.mjs";
-import { createDeviceWorkspaceInputMaterialBindingDescriptor } from "./agent-runtime/task-material-binding.mjs";
+import { createDeviceWorkspaceInputMaterialBindingDescriptor, normalizeMaterialBindingDescriptors, normalizeTaskMaterialBindingDescriptor } from "./agent-runtime/task-material-binding.mjs";
 import { createMaterialToolExecutor } from "./agent-runtime/material-tool-executor.mjs";
 import {
   createManagedSandboxExecToolExecutor,
@@ -45,6 +48,7 @@ import {
   assertRuntimeConversationContext,
   createSessionTurnQueue,
   prepareRuntimeContextSource,
+  selectRuntimeTaskHistory,
   recordRuntimeConversationInput,
   recordRuntimeConversationTaskOutput,
   recordRuntimeConversationTurn,
@@ -59,6 +63,7 @@ import {
   normalizeToolParameterCardSubmission,
 } from "./agent-runtime/tool-parameter-card.mjs";
 import { createToolParameterCardRouteSupport } from "./digital-employee-chat/tool-parameter-card-routes.mjs";
+import { createPendingInteractionRoutes } from "./digital-employee-chat/pending-interaction-routes.mjs";
 import { createTaskArtifactRouteSupport } from "./digital-employee-chat/task-artifact-routes.mjs";
 import { presentRuntimeTasks } from "./digital-employee-chat/runtime-task-presentation.mjs";
 import { buildDigitalEmployeeReferenceContext, buildDigitalEmployeeSafeContext } from "./digital-employee-chat/prompt-context.mjs";
@@ -152,10 +157,13 @@ export function createDigitalEmployeeChatHandlers({
   desktopMaterialIntakeService = null,
   desktopSandboxDeviceSessionRegistry = null,
   sandboxExecPrepareService = null,
+  deviceReadRuntimeTools = null,
+  bindDeviceReadTask = null,
   taskMaterialSetRecoveryService = null,
   reusableArtifactMaterialService = null,
   hasPermission = () => false,
   idempotentEffectService = null,
+  executionContinuationRepository = null,
   getPersonalAutomationService = () => null,
   managedOpenApiTools = [],
   operationReceiptProjector = null,
@@ -215,7 +223,9 @@ export function createDigitalEmployeeChatHandlers({
   const effectiveTokenEstimatorRegistry = tokenEstimatorRegistry || createTiktokenEstimatorRegistry();
   const effectiveContextEngine = contextEngine || createContextEngine({ estimators: effectiveTokenEstimatorRegistry });
   const effectiveProviderAdapterRegistry = providerAdapterRegistry || createDefaultProviderAdapterRegistry();
-  const effectiveToolConfirmationService = toolConfirmationService || createToolCallConfirmationService({ repository: toolConfirmationRepository });
+  const effectiveToolConfirmationService = toolConfirmationService || createToolCallConfirmationService({ repository: toolConfirmationRepository, verifyAcceptedExecution: createAcceptedExecutionVerifier(runtimeTaskService) });
+  const pendingInteractionRoutes = createPendingInteractionRoutes({requireSession,sendJson,currentDigitalEmployees,canInvokeDigitalEmployee,resolveSessionRoute,sessionRepository,
+    parameterRepository:toolParameterContinuationRepository,confirmationService:effectiveToolConfirmationService,cleanEmployeeId});
   const effectiveDesktopMaterialIntakeService = desktopMaterialIntakeService || createDesktopMaterialIntakeService();
   const materialRecoveryAdapters = [
       {
@@ -369,7 +379,14 @@ export function createDigitalEmployeeChatHandlers({
       if (req.method === "PATCH" && url.pathname === "/api/me/runtime-tasks/queue") {
         return reorderCurrentUserRuntimeTaskQueue(req, res);
       }
+      const confirmationStatusMatch = url.pathname.match(/^\/api\/digital-employees\/([^/]+)\/tool-confirmations\/([^/]+)\/submission$/);
+      if (req.method === "GET" && confirmationStatusMatch) {
+        return readToolConfirmationSubmission(req, res, url, confirmationStatusMatch[1], confirmationStatusMatch[2]);
+      }
       const toolParameterCardsMatch = url.pathname.match(/^\/api\/digital-employees\/([^/]+)\/tool-parameter-cards$/);
+      if (req.method === "GET" && url.pathname === "/api/me/pending-interactions") return pendingInteractionRoutes.list(req,res);
+      const pendingInteractionsMatch = url.pathname.match(/^\/api\/digital-employees\/([^/]+)\/pending-interactions$/);
+      if (req.method === "GET" && pendingInteractionsMatch) return pendingInteractionRoutes.list(req,res,pendingInteractionsMatch[1]);
       if (req.method === "GET" && toolParameterCardsMatch) {
         return parameterCardRoutes.list(req, res, toolParameterCardsMatch[1]);
       }
@@ -486,7 +503,10 @@ export function createDigitalEmployeeChatHandlers({
       let toolExecutor;
       try {
         toolExecutor = await createEmployeeToolExecutor({
-          additionalExecutors: [groupArtifacts, scopedMaterialToolExecutor].filter(Boolean),
+          additionalExecutors: [groupArtifacts, scopedMaterialToolExecutor, deviceReadRuntimeTools?.createForTask({
+            employee, session: executionIdentity?.session, task, ownership,
+            authorizeToolCall: (toolCall, operation, allOperations) => turnDispatcher.authorizeToolCall({ allOperations, decision, operation, toolCall }),
+          })].filter(Boolean),
           authorizeToolCall: (toolCall, operation, allOperations) => turnDispatcher.authorizeToolCall({ allOperations, decision, operation, toolCall }),
           currentUserToolCredentialLeaseService,
           defaultOperationReceiptContext: operationReceiptContextFor(ownership),
@@ -558,6 +578,53 @@ export function createDigitalEmployeeChatHandlers({
     });
   }
 
+  async function approvalMaterialSource({ sourceTaskId, route, sessionId, employeeVersion, permissionDigest, depth = 0 }) {
+    if (depth > 8) throw runtimeRecoveryError("tool_confirmation_source_unavailable");
+    if (!sourceTaskId) return null;
+    const sourceTask = runtimeTaskService.readCanonicalExecutionTask(sourceTaskId, { tenantScope: route.tenantScope });
+    const sourceAdmission = runtimeTaskService.readExecutionAdmission(sourceTaskId);
+    if (sourceTask && !sourceTask.cancelRequested && ["queued", "running", "waiting"].includes(sourceTask.status)) {
+      throw runtimeRecoveryError("tool_confirmation_source_pending");
+    }
+    if (!sourceTask || !sourceAdmission || sourceTask.status !== "completed" || sourceTask.cancelRequested ||
+      sourceTask.employeeVersion !== employeeVersion || sourceTask.sessionId !== sessionId ||
+      sourceAdmission.permissionDigest !== permissionDigest ||
+      ["tenantScope", "actorIssuer", "actorSubjectDigest", "employeeId", "channelId"].some(key => sourceTask[key] !== route[key]) ||
+      sourceAdmission.routeBinding?.routeDigest !== route.routeDigest) {
+      throw runtimeRecoveryError("tool_confirmation_source_unavailable");
+    }
+    requireAdmissionTaskMatch(sourceAdmission, sourceTask);
+    await executionInputResolver.resolve(sourceTask);
+    const bindings = runtimeTaskService.readTaskMaterialBindings(sourceTaskId, { tenantScope: route.tenantScope })
+      .filter(binding => binding.sourceKind !== "device_workspace_input");
+    if (sourceTask.taskType === "desktop_material_chat" && !bindings.length) {
+      throw runtimeRecoveryError("tool_confirmation_source_unavailable");
+    }
+    for (const binding of bindings) {
+      requireDesktopMaterialBindingMatch(binding, { admission: sourceAdmission, task: sourceTask });
+      if (Date.parse(binding.expiresAt) <= Date.now()) throw runtimeRecoveryError("tool_confirmation_source_unavailable");
+    }
+    if (bindings.some(binding => binding.sourceKind === "approved_workspace_continuation")) {
+      const original = await approvalMaterialSource({ sourceTaskId: bindings[0].sourceTaskId,
+        route, sessionId, employeeVersion, permissionDigest, depth: depth + 1 });
+      const witnesses = bindings.map(binding => normalizeTaskMaterialBindingDescriptor({
+        contractVersion: "task-material-binding-descriptor.v1", sourceKind: binding.sourceKind,
+        adapterId: binding.adapterId, sourceTaskId: binding.sourceTaskId, sourceBindingDigest: binding.sourceBindingDigest,
+        sourceIdentityDigest: binding.sourceIdentityDigest, expiresAt: binding.expiresAt,
+      }));
+      if (!original || !isDeepStrictEqual(normalizeMaterialBindingDescriptors(witnesses), original.descriptors)) throw runtimeRecoveryError("tool_confirmation_source_unavailable");
+      return original;
+    }
+    const descriptors = bindings.length ? normalizeMaterialBindingDescriptors(bindings.map(binding => normalizeTaskMaterialBindingDescriptor({
+      contractVersion: "task-material-binding-descriptor.v1", sourceKind: "approved_workspace_continuation",
+      adapterId: "approved-workspace-continuation.v1", sourceTaskId, sourceBindingDigest: binding.bindingDigest,
+      sourceIdentityDigest: crypto.createHash("sha256").update(JSON.stringify([
+        "approved-workspace-continuation.v1", sourceTaskId, binding.bindingDigest,
+      ])).digest("hex"), expiresAt: binding.expiresAt,
+    }))) : [];
+    return { taskId: sourceTaskId, bindings, descriptors };
+  }
+
   async function recoverPersistentTextTask(task, ownership, { materialRequired = false } = {}) {
     if (typeof resolveRecoverySession !== "function") throw runtimeRecoveryError("execution_task_identity_revalidation_unavailable");
     const admission = runtimeTaskService?.readExecutionAdmission?.(task.taskId);
@@ -593,13 +660,13 @@ export function createDigitalEmployeeChatHandlers({
     const currentSession = await sessionRepository.readCurrentSession(expectedRoute);
     if (currentSession?.sessionId !== task.sessionId) throw runtimeRecoveryError("execution_task_session_rotated");
     const resolved = await executionInputResolver.resolve(task);
-    const contextSource = await prepareRuntimeContextSource({
+    const contextSource = selectRuntimeTaskHistory(await prepareRuntimeContextSource({
       checkpointRepository,
       excludeEntryId: task.executionInputRef.refId,
       expectedSessionId: task.sessionId,
       route: resolved.route,
       sessionRepository,
-    });
+    }), resolved.contextProjection);
     const existingResult = await readRuntimeConversationResult({ expectedSessionId: task.sessionId, source: contextSource, taskId: task.taskId });
     if (existingResult?.message?.role === "assistant") {
       if (!ownership.appendResultAvailable?.()) throw runtimeRecoveryError("execution_task_ownership_lost");
@@ -616,9 +683,30 @@ export function createDigitalEmployeeChatHandlers({
       : persistedMaterialBindings.filter((binding) => binding?.sourceKind === "device_workspace_input");
     if (materialRequired && !materialBindings.length) throw runtimeRecoveryError("task_material_binding_unavailable");
     materialBindings.forEach((binding) => requireDesktopMaterialBindingMatch(binding, { admission, task }));
+    // The task's encrypted bindings retain this witness after the one-use
+    // approval is consumed. Recovery must not depend on a pending card.
+    const workspaceContinuations = materialBindings.filter(binding => binding.sourceKind === "approved_workspace_continuation");
+    let approvedSource = null;
+    if (workspaceContinuations.length) {
+      approvedSource = await approvalMaterialSource({ sourceTaskId: workspaceContinuations[0].sourceTaskId,
+        route: resolved.route, sessionId: task.sessionId, employeeVersion: task.employeeVersion,
+        permissionDigest: admission.permissionDigest });
+      const actualDescriptors = workspaceContinuations.map(binding => normalizeTaskMaterialBindingDescriptor({
+        contractVersion: "task-material-binding-descriptor.v1", sourceKind: binding.sourceKind,
+        adapterId: binding.adapterId, sourceTaskId: binding.sourceTaskId, sourceBindingDigest: binding.sourceBindingDigest,
+        sourceIdentityDigest: binding.sourceIdentityDigest, expiresAt: binding.expiresAt,
+      }));
+      if (!approvedSource?.bindings.length || materialBindings.length !== workspaceContinuations.length ||
+        !isDeepStrictEqual(normalizeMaterialBindingDescriptors(actualDescriptors), approvedSource.descriptors)) {
+        throw runtimeRecoveryError("tool_confirmation_source_unavailable");
+      }
+    }
     const hasRecoverableMaterialBinding = materialBindings.some((binding) => binding?.sourceKind !== "device_workspace_input");
     const materialIntake = hasRecoverableMaterialBinding
-      ? await effectiveTaskMaterialSetRecoveryService.recover({ bindings: materialBindings, taskId: task.taskId })
+      ? await effectiveTaskMaterialSetRecoveryService.recover({
+        bindings: approvedSource?.bindings.length ? approvedSource.bindings : materialBindings,
+        taskId: approvedSource?.bindings.length ? approvedSource.taskId : task.taskId,
+      })
       : null;
     if (materialRequired && !materialIntake) throw runtimeRecoveryError("desktop_material_intake_expired");
     const executionTask = ownership?.task || task;
@@ -890,7 +978,13 @@ export function createDigitalEmployeeChatHandlers({
       return sendSseError(res, 404, "digital_employee_not_found", "未找到该数字员工。");
     }
     const channelId = input.channelId === "desktop" ? "desktop" : "management_console";
-    const requestId = cleanRequestId(input.requestId) || `request-${crypto.randomUUID()}`;
+    const submittedApproval = normalizeToolConfirmation(input.toolConfirmation);
+    if (input.toolConfirmation && !submittedApproval) return sendSseError(res, 422, "tool_confirmation_invalid", "操作确认格式无效，请重新审核。");
+    if (!submittedApproval && cleanRequestId(input.requestId).startsWith("tool-confirmation:")) {
+      return sendSseError(res, 422, "request_id_reserved", "请求标识无效。");
+    }
+    const requestId = submittedApproval?.decision === "approved" ? `tool-confirmation:${submittedApproval.id}`
+      : cleanRequestId(input.requestId) || `request-${crypto.randomUUID()}`;
     if (typeof canInvokeDigitalEmployee === "function" && !canInvokeDigitalEmployee({ channelId, employee, session })) {
       return sendSseError(res, 403, "digital_employee_access_required", "当前身份无权使用该数字员工。");
     }
@@ -898,12 +992,54 @@ export function createDigitalEmployeeChatHandlers({
     if (internal?.conversationScope && !conversationScope) throw runtimeRecoveryError("agent_turn_conversation_scope_invalid");
     const sessionKey = runtimeSessionKey({ channelId, employeeId: employee.id, session, conversationScope });
     input.toolParameterCard = parameterSubmission;
+    const currentRoute = resolveSessionRoute({ channelId, employeeId: employee.id, session, sessionKey });
+    let approvalSession = null;
+    let approvalInputSnapshot = null;
+    let knownApprovalTask = null;
+    if (submittedApproval) {
+      if (!persistentTaskExecution || !runtimeTaskService?.readCanonicalExecutionTask) {
+        return sendSseError(res, 503, "tool_confirmation_persistent_runtime_required", "操作确认服务暂不可用，请稍后重试。");
+      }
+      approvalSession = await sessionRepository.readCurrentSession(currentRoute);
+      if (!approvalSession?.sessionId) return sendSseError(res, 410, "tool_confirmation_unavailable", "操作确认已失效，请重新审核。");
+      knownApprovalTask = findConfirmationTask({ runtimeTaskService, route: currentRoute, sessionId: approvalSession.sessionId, requestId });
+      const acceptedInput = !knownApprovalTask && effectiveToolConfirmationService.acceptedInputSnapshot?.({
+        confirmation: submittedApproval, context: confirmationContext(currentRoute, approvalSession.sessionId), requestId,
+      });
+      if (!knownApprovalTask && acceptedInput) {
+        approvalInputSnapshot = acceptedInput.snapshot;
+        if (!approvalInputSnapshot || approvalInputSnapshot.channelId !== channelId ||
+          approvalInputSnapshot.employeeVersion !== employee.version ||
+          approvalInputSnapshot.materialBindings.some(binding => Date.parse(binding.expiresAt) <= Date.now())) {
+          return sendSseError(res, 410, "tool_confirmation_input_unavailable", "原操作确认的输入已失效，请重新审核；操作未执行。");
+        }
+      }
+    }
+    if (submittedApproval && !knownApprovalTask && !approvalInputSnapshot) {
+      try {
+        const source = await approvalMaterialSource({
+          sourceTaskId: effectiveToolConfirmationService.approvedSourceTaskId?.({
+            confirmation: submittedApproval, context: confirmationContext(currentRoute, approvalSession.sessionId),
+          }), route: currentRoute,
+          sessionId: approvalSession.sessionId, employeeVersion: employee.version, permissionDigest: runtimePermissionDigest(session) });
+        if (source?.bindings.length) {
+          approvalInputSnapshot = { contractVersion: "tool-confirmation-input-snapshot.v1", channelId,
+            employeeVersion: employee.version, taskType: "desktop_material_chat", materialBindings: source.descriptors };
+        }
+      } catch (error) {
+        if (error?.code === "tool_confirmation_source_pending") {
+          return sendSseError(res, 503, "tool_confirmation_source_pending", "原审批上下文正在保存，请稍后重试。操作未执行。");
+        }
+        return sendSseError(res, 410, "tool_confirmation_source_unavailable", "原操作确认的工作区已失效，请重新审核；操作未执行。");
+      }
+    }
+    const reuseApprovedMaterials = Boolean(knownApprovalTask || approvalInputSnapshot);
     const desktopIntakeId = channelId === "desktop" ? cleanText(input.desktopMaterial?.intakeId || "") : "";
     const reusableMaterialGrantId = channelId === "desktop" ? cleanReusableArtifactGrantId(input.reusableMaterialGrantId) : "";
-    if (channelId === "desktop" && input.reusableMaterialGrantId && !reusableMaterialGrantId) {
+    if (!reuseApprovedMaterials && channelId === "desktop" && input.reusableMaterialGrantId && !reusableMaterialGrantId) {
       return sendSseError(res, 400, "reusable_artifact_reference_invalid", "所选个人材料引用无效，请重新选择。");
     }
-    const materialIntakeVerified = desktopIntakeId
+    const materialIntakeVerified = desktopIntakeId && !reuseApprovedMaterials
       ? await effectiveDesktopMaterialIntakeService.verifyIntake({
         employeeId: employee.id,
         intakeId: desktopIntakeId,
@@ -911,13 +1047,12 @@ export function createDigitalEmployeeChatHandlers({
         sessionKey,
       })
       : false;
-    if (desktopIntakeId && !materialIntakeVerified) {
+    if (!reuseApprovedMaterials && desktopIntakeId && !materialIntakeVerified) {
       return sendSseError(res, 410, "desktop_material_intake_expired", "本轮临时材料已过期、已使用或与当前员工不匹配，请重新发送文件。");
     }
-    const currentRoute = resolveSessionRoute({ channelId, employeeId: employee.id, session, sessionKey });
     let deviceWorkspaceMaterialDescriptor = null;
     let desktopSandboxDeviceSessionId = "";
-    if (input.deviceWorkspaceMaterial) {
+    if (input.deviceWorkspaceMaterial && !reuseApprovedMaterials) {
       if (channelId !== "desktop") {
         return sendSseError(res, 400, "device_workspace_material_not_available", "本地 Sandbox 工作区只能由 Desktop Channel 提交。");
       }
@@ -933,7 +1068,7 @@ export function createDigitalEmployeeChatHandlers({
       }
     }
     let reusableMaterialDescriptor = null;
-    if (reusableMaterialGrantId) {
+    if (reusableMaterialGrantId && !reuseApprovedMaterials) {
       if (!reusableArtifactMaterialService?.materialBindingDescriptorForGrant) {
         return sendSseError(res, 503, "reusable_artifact_material_service_unavailable", "个人材料服务暂不可用，请稍后重试。");
       }
@@ -954,11 +1089,13 @@ export function createDigitalEmployeeChatHandlers({
             : "所选个人材料已过期、无权访问或不存在，请重新选择。");
       }
     }
-    const hasDesktopMaterial = Boolean(desktopIntakeId || reusableMaterialGrantId);
-    if ((hasDesktopMaterial || deviceWorkspaceMaterialDescriptor) && (!persistentTaskExecution || !runtimeTaskService?.waitForConversationTask)) {
+    let hasDesktopMaterial = approvalInputSnapshot
+      ? approvalInputSnapshot.taskType === "desktop_material_chat"
+      : !knownApprovalTask && Boolean(desktopIntakeId || reusableMaterialGrantId);
+    if ((hasDesktopMaterial || deviceWorkspaceMaterialDescriptor || approvalInputSnapshot?.materialBindings.length) && (!persistentTaskExecution || !runtimeTaskService?.waitForConversationTask)) {
       return sendSseError(res, 503, "desktop_material_persistent_runtime_required", "Desktop 材料任务必须由持久化 Worker 执行，当前运行时未就绪。");
     }
-    const turnDecision = turnDispatcher.prepareTurn({
+    const prepareTurnDecision = () => turnDispatcher.prepareTurn({
       connection: {
         channelId,
         receiveMode: "authenticated_chat",
@@ -974,6 +1111,7 @@ export function createDigitalEmployeeChatHandlers({
         confirmationContext: { sessionKey, employeeId: employee.id },
       },
     });
+    let turnDecision = prepareTurnDecision();
     const access = sessionAccess(session);
     const providerRoute = providerRouteForEmployee(employee, getAiProviderRoutes());
     const providerCredential = getAiProviderCredentials().find((credential) => credential.id === providerRoute.credentialId) || {};
@@ -1023,9 +1161,65 @@ export function createDigitalEmployeeChatHandlers({
       return res.end();
     }
 
+    const readTurnMaterialBindings = async () => [deviceWorkspaceMaterialDescriptor, reusableMaterialDescriptor, desktopIntakeId
+      ? await effectiveDesktopMaterialIntakeService.materialBindingDescriptorForIntake({
+        employeeId: employee.id, intakeId: desktopIntakeId,
+        manifestDigest: input.desktopMaterial?.manifest?.contentDigest, sessionKey,
+      }) : null].filter(Boolean);
+    if (submittedApproval) {
+      if (!persistentTaskExecution || !runtimeTaskService?.readCanonicalExecutionTask) {
+        return sendSseError(res, 503, "tool_confirmation_persistent_runtime_required", "操作确认服务暂不可用，请稍后重试。");
+      }
+      approvalSession = await sessionRepository.readCurrentSession(currentRoute);
+      if (!approvalSession?.sessionId) return sendSseError(res, 410, "tool_confirmation_unavailable", "操作确认已失效，请重新审核。");
+      const previousTask = findConfirmationTask({ runtimeTaskService, route: currentRoute, sessionId: approvalSession.sessionId, requestId });
+      if (previousTask) {
+        startSse(res);
+        writeChatMeta({ id: previousTask.taskId, status: previousTask.status }, approvalSession);
+        writeSse(res, "done", { ok: true, followTask: true, runtimeTask: { id: previousTask.taskId, employeeId: employee.id, status: previousTask.status } });
+        return res.end();
+      }
+      if (!approvalInputSnapshot) {
+        approvalInputSnapshot = {
+          contractVersion: "tool-confirmation-input-snapshot.v1", channelId, employeeVersion: employee.version,
+          taskType: hasDesktopMaterial ? "desktop_material_chat" : "digital_employee_chat",
+          materialBindings: await readTurnMaterialBindings(),
+        };
+        if (hasDesktopMaterial && !approvalInputSnapshot.materialBindings.length) {
+          return sendSseError(res, 410, "desktop_material_intake_expired", "本轮临时材料已失效，请重新发送文件。");
+        }
+      }
+      if (!effectiveToolConfirmationService.acceptApproval?.({ confirmation: submittedApproval,
+        context: confirmationContext(currentRoute, approvalSession.sessionId), requestId,
+        inputSnapshot: approvalInputSnapshot,
+        providerTimeoutPolicy: constrainProviderTimeoutPolicy(lease.timeoutPolicy, internal?.taskExecutionMaxMs ?? null) })) {
+        return sendSseError(res, 410, "tool_confirmation_unavailable", "操作确认已失效，请重新审核。");
+      }
+      // Concurrent first deliveries may have prepared different bodies. The
+      // atomically accepted snapshot, never the later caller's body, wins.
+      const acceptedInput = effectiveToolConfirmationService.acceptedInputSnapshot?.({
+        confirmation: submittedApproval, context: confirmationContext(currentRoute, approvalSession.sessionId), requestId,
+      });
+      approvalInputSnapshot = acceptedInput?.snapshot;
+      if (!approvalInputSnapshot || approvalInputSnapshot.channelId !== channelId ||
+        approvalInputSnapshot.employeeVersion !== employee.version ||
+        approvalInputSnapshot.materialBindings.some(binding => Date.parse(binding.expiresAt) <= Date.now())) {
+        return sendSseError(res, 410, "tool_confirmation_input_unavailable", "原操作确认的输入已失效，请重新审核；操作未执行。");
+      }
+      hasDesktopMaterial = approvalInputSnapshot.taskType === "desktop_material_chat";
+      if (approvalInputSnapshot.materialBindings.length && !runtimeTaskService?.waitForConversationTask) {
+        return sendSseError(res, 503, "desktop_material_persistent_runtime_required", "Desktop 材料任务必须由持久化 Worker 执行，当前运行时未就绪。");
+      }
+      turnDecision = prepareTurnDecision();
+    }
+
     try {
       const queuedTurn = await effectiveSessionTurnQueue.enqueueSessionTurn(sessionKey, async () => {
         if (internal?.signal?.aborted) throw runtimeRecoveryError("agent_turn_canceled");
+        if (submittedApproval) {
+          const duplicateTask = findConfirmationTask({ runtimeTaskService, route: currentRoute, sessionId: approvalSession.sessionId, requestId });
+          if (duplicateTask) return { duplicateTask };
+        }
         if (hasDesktopMaterial && resolveRuntimeAdapter(employee) !== "responses_api") {
           throw new Error("desktop_material_runtime_adapter_unsupported");
         }
@@ -1038,6 +1232,7 @@ export function createDigitalEmployeeChatHandlers({
         const executionInput = await recordRuntimeConversationInput({
           source: contextSource,
           turnId: requestId,
+          expectedSessionId: approvalSession?.sessionId || "",
           userText: message,
           outputFormat: input.outputFormat,
           executionBudget: input.executionBudget,
@@ -1048,6 +1243,7 @@ export function createDigitalEmployeeChatHandlers({
             confirmation: turnDecision.turn.toolConfirmation,
             context: turnDecision.turn.confirmationContext,
             executionInputId: executionInput.entry.entryId,
+            requestId,
           })) throw runtimeRecoveryError("tool_confirmation_continuation_invalid");
         const submittedParameterState = await submitRuntimeToolParameterContinuation({
           employeeId: employee.id,
@@ -1058,14 +1254,7 @@ export function createDigitalEmployeeChatHandlers({
         });
         const resolvedParameterContinuation = submittedParameterState?.continuation || null;
         if (submittedParameterState) contextSource.session = submittedParameterState.session;
-        const durableMaterialBindings = [deviceWorkspaceMaterialDescriptor, reusableMaterialDescriptor, desktopIntakeId
-          ? await effectiveDesktopMaterialIntakeService.materialBindingDescriptorForIntake({
-            employeeId: employee.id,
-            intakeId: desktopIntakeId,
-            manifestDigest: input.desktopMaterial?.manifest?.contentDigest,
-            sessionKey,
-          })
-          : null].filter(Boolean);
+        const durableMaterialBindings = approvalInputSnapshot?.materialBindings || await readTurnMaterialBindings();
         if (hasDesktopMaterial && !durableMaterialBindings.length) {
           throw runtimeRecoveryError("desktop_material_intake_expired");
         }
@@ -1081,13 +1270,20 @@ export function createDigitalEmployeeChatHandlers({
           // A local Sandbox task does not require an uploaded material. Bind
           // every Desktop task to the authenticated device session so the
           // Codex-style no-input execution path has a valid workspace.
-          beforeWorkerWake: desktopSandboxDeviceSessionId
-            ? (canonicalTask) => desktopSandboxDeviceSessionRegistry?.bindTask?.({
-              deviceSessionId: desktopSandboxDeviceSessionId,
-              runtimeTask: canonicalTask,
-              session,
-            })
-            : null,
+          beforeWorkerWake: (canonicalTask, submission) => {
+            if (desktopSandboxDeviceSessionId) desktopSandboxDeviceSessionRegistry?.bindTask?.({
+              deviceSessionId: desktopSandboxDeviceSessionId, runtimeTask: canonicalTask, session,
+            });
+            bindDeviceReadTask?.({ task: canonicalTask, session, req, created: submission?.created === true });
+          },
+          commitSubmission: submittedApproval ? (submission, submit) => {
+            if (!effectiveToolConfirmationService.bindApprovalToTask?.({ confirmation: submittedApproval,
+              context: turnDecision.turn.confirmationContext, executionInputId: executionInput.entry.entryId,
+              taskId: submission.taskId, inputDigest: submission.inputDigest })) {
+              throw runtimeRecoveryError("tool_confirmation_task_binding_invalid");
+            }
+            return submit();
+          } : null,
           employee,
           taskExecutionMaxMs: internal?.taskExecutionMaxMs ?? null,
           executionInput,
@@ -1098,10 +1294,15 @@ export function createDigitalEmployeeChatHandlers({
           permissionDigest: runtimePermissionDigest(session),
           session,
           sourceSystemId: channelId === "desktop" ? "desktop-device-channel" : "digital-workforce-management",
-          taskType: hasDesktopMaterial ? "desktop_material_chat" : "digital_employee_chat",
+          taskType: approvalInputSnapshot?.taskType || (hasDesktopMaterial ? "desktop_material_chat" : "digital_employee_chat"),
           turnDecision,
         }) || null;
         turnDecision.turn.confirmationContext.taskId = runtimeTask?.id || "";
+        if (submittedApproval) {
+          turnDecision.turn.toolConfirmation = effectiveToolConfirmationService.approvalForExecutionInput({
+            context: turnDecision.turn.confirmationContext, executionInputId: executionInput.entry.entryId,
+          });
+        }
         startSse(res);
         writeChatMeta(runtimeTask, executionInput.session);
         if (deviceWorkspaceMaterialDescriptor && runtimeTask) {
@@ -1186,6 +1387,13 @@ export function createDigitalEmployeeChatHandlers({
         }
         return executeTurn();
       });
+      if (queuedTurn.duplicateTask) {
+        const task = queuedTurn.duplicateTask;
+        startSse(res);
+        writeChatMeta({ id: task.taskId, status: task.status }, approvalSession);
+        writeSse(res, "done", { ok: true, followTask: true, runtimeTask: { id: task.taskId, employeeId: employee.id, status: task.status } });
+        return res.end();
+      }
       let { conversationSession, runtimeTask, turnResult } = queuedTurn;
       if (queuedTurn.persistentHandoff) {
         const settledTask = await runtimeTaskService.waitForConversationTask(runtimeTask, {
@@ -1397,7 +1605,10 @@ export function createDigitalEmployeeChatHandlers({
       service: getPersonalAutomationService(), session, task: automationTask, idempotentEffectService, operationReceiptProjector,
     });
     const toolExecutor = await createEmployeeToolExecutor({
-      additionalExecutors: [crmToolExecutor, materialToolExecutor, managedSandboxToolExecutor, personalAutomationTool],
+      additionalExecutors: [crmToolExecutor, materialToolExecutor, managedSandboxToolExecutor, personalAutomationTool,
+        deviceReadRuntimeTools?.createForTask({ employee, session, task: executionRuntimeTask, ownership: executionOwnership,
+          authorizeToolCall: (toolCall, operation, allOperations) => turnDispatcher.authorizeToolCall({ allOperations, decision: authorizationDecision, operation, toolCall }),
+        })],
       authorizeToolCall: (toolCall, operation, allOperations) => turnDispatcher.authorizeToolCall({ allOperations, decision: authorizationDecision, operation, toolCall }),
       currentUserToolCredentialLeaseService,
       employee,
@@ -1428,84 +1639,10 @@ export function createDigitalEmployeeChatHandlers({
       };
     }
     const operationReceiptContext = operationReceiptContextFor(executionOwnership);
-    const approvedToolCall = effectiveToolConfirmationService.approvedToolCall?.({
+    let approvedToolCall = effectiveToolConfirmationService.approvedToolCall?.({
       confirmation: turnDecision.turn?.toolConfirmation,
       context: turnDecision.turn?.confirmationContext,
     });
-    let agentRuntimeTask = executionRuntimeTask;
-    let confirmedToolExecution = null;
-    if (approvedToolCall) {
-      if (persistentTaskExecution && typeof runtimeActivityRecorder !== "function") {
-        throw new TypeError("persistent confirmed Tool execution requires canonical activity recorder");
-      }
-      if (persistentTaskExecution && typeof runtimeEfficiencyRecorder !== "function") {
-        throw new TypeError("persistent confirmed Tool execution requires canonical efficiency recorder");
-      }
-      const activityExecution = await executeRuntimeToolActivity({
-        activitySnapshot: executionRuntimeTask?.activitySnapshot || null,
-        confirmedToolCall: true,
-        onActivity: (activity) => writeSse(res, "step", agentToolActivityStep(activity)),
-        operationReceiptContext,
-        ...(runtimeActivityRecorder ? {
-          persistActivity: ({ activitySnapshot }) => runtimeActivityRecorder({
-            activitySnapshot,
-            runtimeTask: executionRuntimeTask,
-          }),
-        } : {}),
-        ...(runtimeEfficiencyRecorder ? {
-          persistEfficiency: ({ activity, executorRetryCount, repeatThreshold, result, toolCall }) =>
-            runtimeEfficiencyRecorder({
-              mutation: {
-                type: "tool_call_terminal",
-                repeatThreshold,
-                activity,
-                executorRetryCount,
-                result,
-                toolCall,
-              },
-              runtimeTask: executionRuntimeTask,
-            }),
-        } : {}),
-        runtimeTask: executionRuntimeTask,
-        signal: executionSignal,
-        toolCall: approvedToolCall,
-        toolExecutor,
-      });
-      confirmedToolExecution = activityExecution.result;
-      if (activityExecution.efficiency?.analysis?.breakerTriggered === true) {
-        await materialToolExecutor?.dispose?.();
-        return {
-          partial: true,
-          reason: "agent_tool_loop_no_progress",
-          text: "检测到连续完全重复且无进展的 Tool 调用，任务已安全停止。",
-          agentRuntime: {
-            adapter: "responses_api_tool_loop",
-            realModelRequested: false,
-            status: "agent_tool_loop_no_progress",
-            blockedReason: "agent_tool_loop_no_progress",
-            requestCount: 0,
-            toolCallCount: activityExecution.activitySnapshot.activities.length,
-            toolCalls: [],
-            usage: {},
-          },
-        };
-      }
-      agentRuntimeTask = Object.freeze({
-        ...executionRuntimeTask,
-        activitySnapshot: activityExecution.activitySnapshot,
-      });
-    }
-    if (approvedToolCall) {
-      authorizationDecision = {
-        ...turnDecision,
-        turn: { ...turnDecision.turn, toolConfirmation: null },
-      };
-    }
-    const confirmedEffectStop = confirmedExternalEffectStopResult(confirmedToolExecution, approvedToolCall);
-    if (confirmedEffectStop) {
-      await materialToolExecutor?.dispose?.();
-      return confirmedEffectStop;
-    }
     const pendingToolParameterDrafts = submittedToolParameterCard?.ok
       ? []
       : pendingParameterCardPromptDrafts(toolParameterContinuationRepository?.listDrafts?.({
@@ -1521,7 +1658,7 @@ export function createDigitalEmployeeChatHandlers({
       dependencyContext,
       lease,
       providerRoute,
-      confirmedToolExecution,
+      confirmedToolExecution: null,
       pendingToolParameterDrafts,
       toolParameterContinuation: submittedToolParameterCard?.value || null,
       toolRuntimeStatus: toolExecutor.runtimeStatus(),
@@ -1535,26 +1672,124 @@ export function createDigitalEmployeeChatHandlers({
       contextAssembly: { contractVersion: "runtime-context-assembly.v1", status: "budgeting" },
       conversationHistory: [],
     });
-    const contextSelection = await assembleRuntimeConversationHistory({
-      capability: lease.contextCapability,
-      compactionPolicy: contextCompactionPolicy,
-      contextCompactor: contextCompactor || managedContextCompactor({ lease, runtimeAdapter: "responses_api", runtimeTask: executionRuntimeTask, signal: executionSignal }),
-      contextEngine: effectiveContextEngine,
-      currentTurnItems: budgetProbe.input,
-      fixedItems: [{ type: "instructions", content: budgetProbe.instructions }],
-      source: contextSource,
-      toolDefinitions: budgetProbe.tools || [],
-    });
-    assertRuntimeConversationContext(contextSelection);
-    const body = buildResponsesPayload({
-      ...promptInputs,
-      contextAssembly: contextSelection.summary,
-      conversationHistory: contextSelection.conversationHistory,
-    });
+    let body = budgetProbe;
+    let contextSelection;
     let modelRun;
     let taskOutputManifest = null;
+    let continuationOptions = {};
+    let completedCallIncluded = false;
+    let agentRuntimeTask = executionRuntimeTask;
+    let confirmedToolExecution = null;
     try {
+      continuationOptions = await prepareExecutionContinuation({
+        approvedToolCall, body: budgetProbe, promptForSave: () => body,
+        contextForSave: () => contextSelection.summary,
+        contextSource, executionOwnership, executionRuntimeTask, lease, session,
+      });
+      approvedToolCall = continuationOptions.confirmedToolCall || approvedToolCall;
+      if (approvedToolCall) {
+        if (persistentTaskExecution && typeof runtimeActivityRecorder !== "function") {
+          throw new TypeError("persistent confirmed Tool execution requires canonical activity recorder");
+        }
+        if (persistentTaskExecution && typeof runtimeEfficiencyRecorder !== "function") {
+          throw new TypeError("persistent confirmed Tool execution requires canonical efficiency recorder");
+        }
+        const activityExecution = await executeRuntimeToolActivity({
+          activitySnapshot: executionRuntimeTask?.activitySnapshot || null,
+          confirmedToolCall: true,
+          ...(continuationOptions.recoverConfirmedToolCall ? {recoverRecordedResult:true,recoverySequence:1} : {}),
+          onActivity: (activity) => writeSse(res, "step", agentToolActivityStep(activity)),
+          operationReceiptContext,
+          ...(runtimeActivityRecorder ? {
+            persistActivity: ({ activitySnapshot }) => runtimeActivityRecorder({
+              activitySnapshot,
+              runtimeTask: executionRuntimeTask,
+            }),
+          } : {}),
+          ...(runtimeEfficiencyRecorder ? {
+            persistEfficiency: ({ activity, executorRetryCount, repeatThreshold, result, toolCall }) =>
+              runtimeEfficiencyRecorder({
+                mutation: {
+                  type: "tool_call_terminal",
+                  repeatThreshold,
+                  activity,
+                  executorRetryCount,
+                  result,
+                  toolCall,
+                },
+                runtimeTask: executionRuntimeTask,
+              }),
+          } : {}),
+          runtimeTask: executionRuntimeTask,
+          signal: executionSignal,
+          timeoutMs: lease.toolExecutionTimeoutMs || 300_000,
+          toolCall: approvedToolCall,
+          toolExecutor,
+        });
+        confirmedToolExecution = activityExecution.result;
+        await continuationOptions.saveConfirmedExecution?.(confirmedToolExecution);
+        if (activityExecution.efficiency?.analysis?.breakerTriggered === true) {
+          return {
+            partial: true,
+            reason: "agent_tool_loop_no_progress",
+            text: "检测到连续完全重复且无进展的 Tool 调用，任务已安全停止。",
+            agentRuntime: {
+              adapter: "responses_api_tool_loop",
+              realModelRequested: false,
+              status: "agent_tool_loop_no_progress",
+              blockedReason: "agent_tool_loop_no_progress",
+              requestCount: 0,
+              toolCallCount: activityExecution.activitySnapshot.activities.length,
+              toolCalls: [],
+              usage: {},
+            },
+          };
+        }
+        agentRuntimeTask = Object.freeze({
+          ...(persistentTaskExecution ? executionOwnership.refreshCurrentLease() : executionRuntimeTask),
+          id: executionRuntimeTask?.id || executionRuntimeTask?.taskId,
+          activitySnapshot: activityExecution.activitySnapshot,
+        });
+      }
+      if (approvedToolCall) {
+        authorizationDecision = {
+          ...turnDecision,
+          turn: { ...turnDecision.turn, toolConfirmation: null },
+        };
+      }
+      const confirmedEffectStop = confirmedExternalEffectStopResult(confirmedToolExecution, approvedToolCall);
+      if (confirmedEffectStop) {
+        return confirmedEffectStop;
+      }
+      promptInputs.confirmedToolExecution = confirmedToolExecution;
+      if (confirmedToolExecution) body = buildResponsesPayload({...promptInputs,
+        contextAssembly:{contractVersion:"runtime-context-assembly.v1",status:"budgeting"},conversationHistory:[]});
+      completedCallIncluded = Boolean(confirmedToolExecution && persistentTaskExecution && executionOwnership);
+      // Restoring an original loop must not compact history or call a Provider
+      // before its saved identity, contract and budget have been validated.
+      contextSelection = continuationOptions.executionContinuation
+        ? { summary: continuationOptions.recoveredContextAssembly, conversationHistory: [] }
+        : await assembleRuntimeConversationHistory({
+          capability: lease.contextCapability,
+          compactionPolicy: contextCompactionPolicy,
+          contextCompactor: contextCompactor || managedContextCompactor({ lease, runtimeAdapter: "responses_api", runtimeTask: executionRuntimeTask, signal: executionSignal }),
+          contextEngine: effectiveContextEngine,
+          currentTurnItems: body.input,
+          fixedItems: [{ type: "instructions", content: body.instructions }],
+          source: contextSource,
+          toolDefinitions: body.tools || [],
+        });
+      if (!continuationOptions.executionContinuation) assertRuntimeConversationContext(contextSelection);
+      body = buildResponsesPayload({
+        ...promptInputs,
+        contextAssembly: contextSelection.summary,
+        conversationHistory: contextSelection.conversationHistory,
+      });
       modelRun = await effectiveAgentExecutionService.execute({
+        ...continuationOptions,
+        ...(completedCallIncluded && !continuationOptions.executionContinuation ? {
+          initialCompletedToolCall:{toolCall:approvedToolCall,result:confirmedToolExecution},
+        } : {}),
         lease,
         onToolActivity: (activity) => {
           writeSse(res, "step", agentToolActivityStep(activity));
@@ -1579,7 +1814,7 @@ export function createDigitalEmployeeChatHandlers({
     } finally {
       await materialToolExecutor?.dispose?.();
     }
-    if (confirmedToolExecution) {
+    if (confirmedToolExecution && !completedCallIncluded) {
       modelRun.agentRuntime = {
         ...modelRun.agentRuntime,
         toolCallCount: Number(modelRun.agentRuntime?.toolCallCount || 0) + 1,
@@ -1597,6 +1832,92 @@ export function createDigitalEmployeeChatHandlers({
     for (const chunk of chunkText(modelRun.text, 96)) writeSse(res, "delta", { text: chunk });
     writeSse(res, "step", step("stream", "done", "已接收完整回复", "stream"));
     return { ...modelRun, contextAssembly: contextSelection.summary, taskOutputManifest };
+  }
+
+  async function prepareExecutionContinuation({ approvedToolCall, body, promptForSave, contextForSave, contextSource,
+    executionOwnership, executionRuntimeTask, lease, session }) {
+    if (!persistentTaskExecution || !executionContinuationRepository || !executionOwnership) return {};
+    const task = executionRuntimeTask;
+    const recovered = task.attemptCount > 1 || task.recoveryCount > 0;
+    const binding = effectiveAgentExecutionService.continuationBinding(body);
+    // Special completion evaluators still need their owning evidence restoration.
+    if (!binding.supported) {
+      if (recovered) throw runtimeRecoveryError("agent_loop_continuation_completion_boundary_unsupported");
+      return {};
+    }
+    const admission = runtimeTaskService.readExecutionAdmission(task.taskId);
+    requireAdmissionTaskMatch(admission, task);
+    const route = await sessionRepository.readVerifiedRoute(task.sessionId);
+    const routeMatches = value => value && value.routeDigest === admission.routeBinding.routeDigest &&
+      value.routeDigest === contextSource.route.routeDigest &&
+      ["tenantScope", "actorIssuer", "actorSubjectDigest", "employeeId", "channelId"].every(field => value[field] === task[field]);
+    if (!routeMatches(route)) throw runtimeRecoveryError("execution_task_identity_route_mismatch");
+    const identity = Object.fromEntries(["tenantScope", "taskId", "actorIssuer", "actorSubjectDigest", "employeeId",
+      "sessionId", "inputDigest", "executionDeadlineAt"].map(field => [field, task[field]]));
+    identity.routeDigest = route.routeDigest;
+    identity.executionBindingDigest = crypto.createHash("sha256").update(JSON.stringify({
+      digest: binding.digest,
+      provider: Object.fromEntries(["providerRouteId", "providerCredentialId", "baseUrl", "provider", "apiProtocol",
+        "authMode", "upstreamDialect", "compat", "capabilityProfileVersion", "contextCapability", "timeoutPolicy",
+        "retryCount", "fallbackRouteId", "model", "reasoningEffort"].map(field => [field, lease[field]])),
+    })).digest("hex");
+    const ownership = Object.fromEntries(["leaseId", "workerIdDigest", "fencingToken"].map(field => [field, executionOwnership.lease[field]]));
+    const assertCurrent = async () => {
+      executionOwnership.refreshCurrentLease();
+      if (runtimePermissionDigest(session) !== admission.permissionDigest ||
+        !routeMatches(await sessionRepository.readVerifiedRoute(task.sessionId)) ||
+        (await sessionRepository.readCurrentSession(route))?.sessionId !== task.sessionId) {
+        throw runtimeRecoveryError("execution_task_identity_revalidation_failed");
+      }
+      const employee = currentDigitalEmployees().find(value => value.id === task.employeeId);
+      if (!employee || String(employee.version || "") !== task.employeeVersion ||
+        (typeof canInvokeDigitalEmployee === "function" && !canInvokeDigitalEmployee({ channelId: task.channelId, employee, session }))) {
+        throw runtimeRecoveryError("execution_task_entitlement_revoked");
+      }
+    };
+    await assertCurrent();
+    let head = executionContinuationRepository.load({ identity, ownership,
+      requireExisting: recovered || Number(task.runtimeEvidence?.requestCount || 0) > 0 || Boolean(task.activitySnapshot?.activities?.length) });
+    if (head && (head.state.contractVersion !== "digital-employee-execution-continuation.v1" ||
+      head.state.bindingDigest !== binding.digest ||
+      (head.state.loop ? !head.state.prompt : !head.state.confirmedToolCall || head.state.prompt !== null) ||
+      (approvedToolCall && JSON.stringify(head.state.confirmedToolCall) !== JSON.stringify(approvedToolCall)))) {
+      throw runtimeRecoveryError("agent_loop_continuation_invalid");
+    }
+    if (head && head.fencingToken !== ownership.fencingToken) {
+      head = executionContinuationRepository.adopt({ identity, ownership, expected: head });
+    }
+    const saveState = async state => {
+      await assertCurrent();
+      head = executionContinuationRepository.save({identity,ownership,expectedRevision:head?.revision || 0,state});
+      await assertCurrent();
+    };
+    // Persist the exact approved call before its once-only confirmation is consumed.
+    // On recovery this is data for owning receipt lookup, never approval to execute.
+    if (!head && approvedToolCall) await saveState({
+      contractVersion:"digital-employee-execution-continuation.v1",bindingDigest:binding.digest,
+      confirmedToolCall:approvedToolCall,confirmedToolExecution:null,prompt:null,contextAssembly:null,loop:null,
+    });
+    const restoredHead = head;
+    return {
+      ...(head?.state.loop ? { executionContinuation: head.state.loop, recoveredPrompt: head.state.prompt,
+        recoveredBindingDigest: head.state.bindingDigest,
+        recoveredContextAssembly: head.state.contextAssembly || { contractVersion: "runtime-context-assembly.v1", status: "recovered" } } : {}),
+      ...(head?.state.confirmedToolCall ? {
+        confirmedToolCall:head.state.confirmedToolCall,recoverConfirmedToolCall:recovered,
+        saveConfirmedExecution:async result => saveState({...head.state,confirmedToolExecution:result}),
+      } : {}),
+      onExecutionContinuation: async loop => {
+        const originalPrompt = restoredHead?.state.prompt || promptForSave();
+        if (effectiveAgentExecutionService.continuationBinding(promptForSave()).digest !== binding.digest) {
+          throw runtimeRecoveryError("agent_loop_continuation_invalid");
+        }
+        await saveState({ contractVersion: "digital-employee-execution-continuation.v1", bindingDigest: binding.digest,
+          ...(head?.state.confirmedToolCall ? {confirmedToolCall:head.state.confirmedToolCall,
+            confirmedToolExecution:head.state.confirmedToolExecution} : {}),
+          prompt: originalPrompt, contextAssembly: restoredHead?.state.contextAssembly || contextForSave(), loop });
+      },
+    };
   }
 
   async function streamCodexCliResponse({ res, input, session, employee, access, contextSource, dependencyContext, executionOwnership = null, lease, providerRoute, runtimeTask, signal = null, adapterSelectionReason }) {
@@ -2078,6 +2399,26 @@ export function createDigitalEmployeeChatHandlers({
     return null;
   }
 
+  async function readToolConfirmationSubmission(req, res, url, employeeId, encodedId) {
+    const session = requireSession(req, res);
+    if (!session) return null;
+    const employee = currentDigitalEmployees().find(item => cleanEmployeeId(item.id) === cleanEmployeeId(employeeId));
+    if (!employee) return sendJson(res, 404, { ok: false, error: "digital_employee_not_found" });
+    const channelId = url.searchParams.get("channelId") === "management_console" ? "management_console" : "desktop";
+    if (typeof canInvokeDigitalEmployee === "function" && !canInvokeDigitalEmployee({ channelId, employee, session })) {
+      return sendJson(res, 403, { ok: false, error: "digital_employee_access_required" });
+    }
+    let id;
+    try { id = decodeURIComponent(encodedId); } catch { return sendJson(res, 400, { ok: false, error: "tool_confirmation_invalid" }); }
+    const confirmation = normalizeToolConfirmation({ contractVersion: "tool-call-confirmation.v1", id, decision: "approved" });
+    if (!confirmation) return sendJson(res, 400, { ok: false, error: "tool_confirmation_invalid" });
+    const route = resolveSessionRoute({ channelId, employeeId: employee.id, session });
+    const current = await sessionRepository.readCurrentSession(route);
+    const result = current?.sessionId ? confirmationSubmissionStatus({ service: effectiveToolConfirmationService,
+      runtimeTaskService, route, sessionId: current.sessionId, confirmation, requestId: `tool-confirmation:${id}` }) : { status: "unavailable" };
+    return sendJson(res, 200, { ok: true, contractVersion: "tool-confirmation-submission.v1", ...result });
+  }
+
   async function readDigitalEmployeeRuntimeTaskResult(req, res, requestedEmployeeId = "", encodedTaskId = "") {
     const session = requireSession(req, res);
     if (!session) return null;
@@ -2226,7 +2567,8 @@ function runtimeTaskQueueErrorStatus(error) {
 function requireDesktopMaterialBindingMatch(binding = {}, { admission = {}, task = {} } = {}) {
   const supportedAdapter = (binding.sourceKind === "channel_resource" && binding.adapterId === "desktop-material-intake.v1") ||
     (binding.sourceKind === "device_workspace_input" && binding.adapterId === "device-workspace-input.v1") ||
-    (binding.sourceKind === "reusable_artifact_grant" && binding.adapterId === "reusable-artifact-library.v1");
+    (binding.sourceKind === "reusable_artifact_grant" && binding.adapterId === "reusable-artifact-library.v1") ||
+    (binding.sourceKind === "approved_workspace_continuation" && binding.adapterId === "approved-workspace-continuation.v1");
   const matches = binding.contractVersion === "task-material-binding.v1" &&
     supportedAdapter &&
     binding.taskId === task.taskId &&
@@ -2284,7 +2626,7 @@ function desktopSandboxDeviceSessionIdFor(req = null, session = null, registry =
 
 function persistentToolConfirmationContext(route, sessionId, taskId = "") {
   if (!route?.routeDigest || !route.employeeId || !route.actorSubjectDigest || !sessionId) throw runtimeRecoveryError("tool_confirmation_context_invalid");
-  return { sessionKey: `${route.routeDigest}:${sessionId}`, employeeId: route.employeeId, actorId: route.actorSubjectDigest, taskId };
+  return confirmationContext(route, sessionId, taskId);
 }
 
 function cleanReusableArtifactGrantId(value) {

@@ -91,7 +91,7 @@ function createRuntimeTaskSubmissionProjector({ defaultProviderTimeoutPolicy = D
       route.routeDigest,
       requestId,
     ]);
-    const taskId = `task_${requestDigest}`;
+    const taskId = conversationTaskId({ route, requestId });
 
     return normalizeExecutionTaskSubmission({
       taskId,
@@ -251,6 +251,10 @@ function requirePlainObject(value, code, message) {
   }
 }
 
+function conversationTaskId({ route, requestId }) {
+  return `task_${digestCanonical([PROJECTOR_CONTRACT_VERSION, "request", route.routeDigest, requestId])}`;
+}
+
 function digestCanonical(parts) {
   return crypto.createHash("sha256").update(JSON.stringify(parts)).digest("hex");
 }
@@ -265,4 +269,5 @@ export {
   INPUT_REFERENCE_CONTRACT_VERSION,
   PROJECTOR_CONTRACT_VERSION,
   createRuntimeTaskSubmissionProjector,
+  conversationTaskId,
 };

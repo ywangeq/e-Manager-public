@@ -131,6 +131,8 @@ export default function DigitalEmployeeOverview({
   const rows = allRows.filter((row) => employeeMatchesDigitalEmployeeFilters(row.employee, normalizedFilters, businessSkills));
   const enterpriseRows = rows.filter((row) => row.level === "enterprise");
   const businessRows = rows.filter((row) => row.level === "business");
+  const personalRows = rows.filter((row) => row.level === "personal");
+  const personalTotal = allRows.filter((row) => row.level === "personal").length;
   const enterpriseTotal = allRows.filter((row) => row.level === "enterprise").length;
   const businessTotal = allRows.filter((row) => row.level === "business").length;
   const onlineCount = rows.filter((row) => row.health.overall.state === "online").length;
@@ -144,6 +146,7 @@ export default function DigitalEmployeeOverview({
   const metrics = [
     { label: "企业级", value: enterpriseRows.length, detail: `${enterpriseTotal} 总数 · 控制面`, icon: <BrainCircuit size={17} /> },
     { label: "业务级", value: businessRows.length, detail: `${businessTotal} 总数 · 部门流程`, icon: <UserRound size={17} /> },
+    { label: "个人级", value: personalRows.length, detail: `${personalTotal} 总数 · 当前用户`, icon: <UserRound size={17} /> },
     { label: "Channels", value: visibleChannelCount, detail: `${totalChannelCount} 个可筛选`, icon: <RadioTower size={17} /> },
     { label: "Skills", value: totalAssignedSkills, detail: `${assignableSkillCount} 可分配`, icon: <Layers3 size={17} /> },
     { label: "Quality", value: qualityAvg ? `${qualityAvg}` : "N/A", detail: `${onlineCount} 在线 · ${runtimeCount} Runtime`, icon: <Activity size={17} /> },
@@ -213,7 +216,7 @@ export default function DigitalEmployeeOverview({
                 onClick={() => setFilter("level", option.id)}
               >
                 {option.label}
-                <b>{option.id === "enterprise" ? enterpriseTotal : option.id === "business" ? businessTotal : allRows.length}</b>
+                <b>{option.id === "enterprise" ? enterpriseTotal : option.id === "business" ? businessTotal : option.id === "personal" ? personalTotal : allRows.length}</b>
               </button>
             ))}
           </div>
@@ -336,7 +339,7 @@ export default function DigitalEmployeeOverview({
                 <td colSpan={11}>
                   <div className="digital-employee-empty">
                     <strong>没有匹配的数字员工</strong>
-                    <span>切换企业级/业务级，或调整 Channels 后再查看。</span>
+                    <span>切换员工级别，或调整 Channels 后再查看。</span>
                   </div>
                 </td>
               </tr>

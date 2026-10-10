@@ -2,6 +2,7 @@ const CONTRACT_VERSION = "artifact-retention-cleanup-coordinator.v1";
 
 export function createArtifactRetentionCleanupCoordinator({
   artifactService,
+  cleanupExecutionContinuations = null,
   batchLimit = 100,
   pollIntervalMs = 15 * 60 * 1_000,
   clock = () => new Date(),
@@ -13,6 +14,9 @@ export function createArtifactRetentionCleanupCoordinator({
   }
   if (typeof clock !== "function" || typeof setTimeoutFn !== "function" || typeof clearTimeoutFn !== "function") {
     throw new TypeError("Artifact retention cleanup coordinator requires clock and timer hooks");
+  }
+  if (cleanupExecutionContinuations !== null && typeof cleanupExecutionContinuations !== "function") {
+    throw new TypeError("Execution continuation cleanup hook must be a function");
   }
   const limit = boundedInteger(batchLimit, 1, 500, "batch_limit");
   const pollMs = boundedInteger(pollIntervalMs, 1_000, 86_400_000, "poll_interval");
@@ -26,6 +30,7 @@ export function createArtifactRetentionCleanupCoordinator({
   let wakePending = false;
   let firstPass = true;
   let lastSummary = emptySummary();
+  let lastArtifactComplete = true;
 
   function start() {
     if (closing || closed) throw coordinatorError("artifact_cleanup_coordinator_closed");
@@ -48,24 +53,32 @@ export function createArtifactRetentionCleanupCoordinator({
     wakePending = false;
     const reasonCode = firstPass ? "startup_recovery" : "scheduled_ttl";
     firstPass = false;
-    inFlight = Promise.resolve().then(() => artifactService.cleanupExpiredArtifacts({
-      now: clock(),
-      limit,
-      reasonCode,
-    })).then((summary) => {
-      lastSummary = normalizeSummary(summary);
-      return lastSummary;
-    }, () => {
-      lastSummary = failureSummary(reasonCode);
+    inFlight = Promise.resolve().then(async () => {
+      let summary;
+      try { summary = normalizeSummary(await artifactService.cleanupExpiredArtifacts({now: clock(),limit,reasonCode})); }
+      catch { summary = failureSummary(reasonCode); }
+      lastArtifactComplete = summary.complete;
+      if (!cleanupExecutionContinuations) { lastSummary = summary; return summary; }
+      let continuationSummary;
+      try {
+        const value = await cleanupExecutionContinuations({limit});
+        if (!value || typeof value.hasMore !== "boolean" ||
+          ["examined","cleared","deferred","failedSafe"].some(field => !Number.isSafeInteger(value[field]) || value[field] < 0 || value[field] > limit)) {
+          throw coordinatorError("execution_continuation_cleanup_summary_invalid");
+        }
+        continuationSummary = Object.fromEntries(["examined","cleared","deferred","failedSafe","hasMore"].map(field => [field,value[field]]));
+      } catch { continuationSummary = {examined:0,cleared:0,deferred:0,failedSafe:1,hasMore:false}; }
+      lastSummary = {...summary,complete:summary.complete && continuationSummary.failedSafe === 0,
+        executionContinuations:continuationSummary};
       return lastSummary;
     }).finally(() => {
       inFlight = null;
       if (!started || closing || closed) return;
-      const backlogPossible = lastSummary.complete && (
+      const backlogPossible = (lastArtifactComplete && (
         lastSummary.authorities.artifactsRetired === limit ||
         lastSummary.authorities.grantsDeleted === limit ||
         lastSummary.objects.examined === limit
-      );
+      )) || lastSummary.executionContinuations?.hasMore === true;
       schedulePass(wakePending || backlogPossible ? 0 : pollMs);
     });
     return inFlight;

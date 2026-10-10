@@ -3,15 +3,16 @@
   "productName": "e-Manager Group Studio Local",
   "description": "Local Group Studio workspace for e-Manager",
   "author": "ywangeq",
-  "version": "3.0.0-beta.32",
+  "version": "3.0.0-beta.69",
   "private": true,
   "type": "module",
   "main": "electron/main.mjs",
   "scripts": {
-    "build": "vite build",
+    "build": "node tools/build-local-calendar-runtime.mjs && vite build",
     "desktop:start": "electron electron/main.mjs",
     "native:build:macos-sandbox": "node tools/build-managed-sandbox-helper.mjs",
-    "desktop:package": "pnpm build && pnpm native:build:macos-sandbox && electron-builder --config electron-builder.config.cjs --mac zip --arm64"
+    "desktop:package": "pnpm build && pnpm native:build:macos-sandbox && pnpm native:build:feishu-read && electron-builder --config electron-builder.config.cjs --mac zip --arm64",
+    "native:build:feishu-read": "node tools/prepare-feishu-read-helper.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

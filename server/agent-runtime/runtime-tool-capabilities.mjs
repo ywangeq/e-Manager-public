@@ -1,3 +1,4 @@
+import { deviceReadOperations } from "../tool-registry/device-read-operations.mjs";
 import path from "node:path";
 import { resolveDigitalWorkforceDataDir } from "../local-data-root.mjs";
 import { createToolAssetRepository } from "../tool-registry/tool-asset-repository.mjs";
@@ -77,5 +78,12 @@ export function createRuntimeToolCapabilities({ projectRoot, env = process.env, 
       ...registered.descriptors(),
     ];
   }
-  return Object.freeze({ descriptors, close });
+  function publishedDeviceReads() {
+    initializeReader();
+    return deviceReadOperations.flatMap(entry => {
+      const asset = assetRepository.resolvePublished(entry.descriptor.toolId);
+      return asset?.kind === "builtin" && asset.catalog?.credentialMode === entry.descriptor.credentialMode ? [{ ...entry, publicationRevision: asset.assetRevision }] : [];
+    });
+  }
+  return Object.freeze({ descriptors, deviceReadOperations: publishedDeviceReads, close });
 }

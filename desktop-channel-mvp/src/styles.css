@@ -1913,7 +1913,7 @@ button {
 .group-run-history button { border: 1px solid #2b4153; border-radius: 5px; color: inherit; background: transparent; cursor: pointer; font: inherit; }
 .group-run-history button:disabled { opacity: .55; cursor: default; }
 .group-run-history button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-.group-run-history-list { display: flex; gap: 6px; overflow-x: auto; margin-top: 4px; scrollbar-color: #2b586f transparent; scrollbar-width: thin; }
+.group-run-history-list { display: flex; align-items: flex-start; gap: 6px; overflow-x: auto; margin-top: 4px; scrollbar-color: #2b586f transparent; scrollbar-width: thin; }
 
 .group-run-current { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 5px; }.group-run-current > strong { color: var(--cyan); }.group-run-step-list { display: flex; flex-wrap: wrap; gap: 4px 10px; max-height: 48px; overflow-y: auto; width: 100%; color: var(--muted); }
 
@@ -1946,15 +1946,6 @@ button {
 /* History cards: selection and deletion have separate, bounded hit areas. */
 .group-history-card { position: relative; box-sizing: border-box; width: 164px; min-width: 0; flex: 0 0 164px; border: 1px solid #28465b; border-radius: 6px; background: #0b1a27; overflow: hidden; }
 .group-history-card.is-done { border-color: #296c57; }
-.group-prototype-shell .group-history-cluster { flex: 0 0 220px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); align-self: flex-start; }
-.group-prototype-shell .group-history-cluster.is-open { flex-basis: 330px; }
-.group-prototype-shell .group-history-cluster.is-selected { border-color: #8ab4f8; }
-.group-prototype-shell .group-history-cluster-toggle { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 5px; width: 100%; padding: 10px; text-align: left; background: transparent; border: 0; color: var(--text); cursor: pointer; }
-.group-prototype-shell .group-history-cluster-toggle strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.group-prototype-shell .group-history-cluster-toggle span { grid-column: 2; font-size: 11px; color: var(--muted); }
-.group-prototype-shell .group-history-cluster-runs { display: grid; gap: 5px; padding: 0 8px 8px; max-height: 260px; overflow-y: auto; }
-.group-prototype-shell .group-history-cluster-runs > .group-history-card { width: 100%; }
-.group-prototype-shell .group-history-cluster-runs > p, .group-prototype-shell .group-history-cluster-runs > small { margin: 0; font-size: 11px; color: var(--muted); }
 .group-history-card.is-bad { border-color: #70404a; }
 .group-history-card.is-neutral { width: 240px; flex-basis: 240px; }
 .group-history-card.is-neutral > .group-history-select { height: 66px; grid-template-rows: 17px 15px 15px; }

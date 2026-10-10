@@ -527,6 +527,7 @@ function isTimeoutCode(value) {
     "provider_request_total_timeout",
     "provider_stream_idle_timeout",
     "task_execution_timeout",
+    "tool_execution_timeout",
   ].includes(String(value || ""));
 }
 

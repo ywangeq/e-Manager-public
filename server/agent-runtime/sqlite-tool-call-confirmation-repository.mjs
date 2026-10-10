@@ -72,7 +72,7 @@ function createSqliteToolCallConfirmationRepository({ databasePath, encryptionKe
       .all(binding, now()).map((row) => open(row, key));
   }
 
-  function accept({ id, contextBinding, requestBinding, acceptedAtMs, executeBeforeMs } = {}) {
+  function accept({ id, contextBinding, requestBinding, acceptedAtMs, executeBeforeMs, inputSnapshot = null } = {}) {
     requiredText(requestBinding, "requestBinding");
     if (!Number.isSafeInteger(acceptedAtMs) || !Number.isSafeInteger(executeBeforeMs) || executeBeforeMs <= acceptedAtMs) throw new TypeError("invalid confirmation acceptance deadline");
     database.exec("BEGIN IMMEDIATE");
@@ -90,7 +90,7 @@ function createSqliteToolCallConfirmationRepository({ databasePath, encryptionKe
         database.exec("COMMIT");
         return null;
       }
-      record.acceptance = { requestBinding, acceptedAtMs, executeBeforeMs };
+      record.acceptance = { requestBinding, acceptedAtMs, executeBeforeMs, ...(inputSnapshot ? { inputSnapshot: structuredClone(inputSnapshot) } : {}) };
       // Older services must reject this internal record even before the original card expires.
       // Its public request keeps that original deadline; the accepted branch owns retention.
       record.expiresAtMs = 0;
@@ -125,17 +125,20 @@ function createSqliteToolCallConfirmationRepository({ databasePath, encryptionKe
     }
   }
 
-  function bindExecutionTask({ id, contextBinding, executionInputBinding, taskId } = {}) {
+  function bindExecutionTask({ id, contextBinding, executionInputBinding, taskId, inputDigest = "" } = {}) {
     requiredText(taskId, "taskId");
     database.exec("BEGIN IMMEDIATE");
     try {
       const record = get(id);
       if (!record?.acceptance || record.contextBinding !== contextBinding || record.executionInputBinding !== executionInputBinding
-        || (record.acceptance.taskId && record.acceptance.taskId !== taskId)) {
+        || (record.acceptance.taskId && record.acceptance.taskId !== taskId)
+        || (record.acceptance.inputSnapshot && !/^[a-f0-9]{64}$/.test(inputDigest))
+        || (record.acceptance.inputDigest && record.acceptance.inputDigest !== inputDigest)) {
         database.exec("COMMIT");
         return false;
       }
       record.acceptance.taskId = taskId;
+      if (inputDigest) record.acceptance.inputDigest = inputDigest;
       database.prepare("UPDATE tool_call_confirmations SET ciphertext = ? WHERE confirmation_id = ?").run(seal(record, key, record.id), record.id);
       database.exec("COMMIT");
       return true;

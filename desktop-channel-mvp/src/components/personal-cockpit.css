@@ -23,7 +23,8 @@
   --status-active: #476b9e;
   --status-neutral: #75849a;
   display: grid;
-  grid-template-columns: 52px minmax(0,1fr) minmax(280px,26%);
+  grid-template-columns: var(--cockpit-sidebar-width,52px) minmax(0,1fr) var(--cockpit-rail-width,minmax(280px,26%));
+  position: relative;
   gap: 12px;
   width: 100%;
   height: 100%;
@@ -274,3 +275,22 @@
   .cockpit-content-layout, .cockpit-work-layout, .cockpit-metric-card::before { transition: none; }
   .cockpit-content-detail, .cockpit-work-detail { animation: none !important; }
 }
+
+/* Keep a selected task visible while the long task list scrolls. */
+@media (min-width: 861px) {
+  .personal-cockpit .cockpit-work-layout > .cockpit-work-detail { position: sticky; top: 0; align-self: start; max-height: calc(100dvh - 100px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+}
+
+.cockpit-resizer { position: absolute; top: 12px; bottom: 12px; width: 12px; z-index: 5; cursor: col-resize; touch-action: none; user-select: none; -webkit-app-region: no-drag; border-radius: 6px; }
+.cockpit-resizer.is-left { left: calc(12px + var(--cockpit-sidebar-width,52px)); }
+.cockpit-resizer.is-right { right: calc(12px + var(--cockpit-rail-width,26%)); }
+.cockpit-resizer::after { content: ""; position: absolute; inset: 0 5px; background: rgba(99,122,157,.10); }
+.cockpit-resizer:hover::after { background: rgba(99,122,157,.28); }
+.cockpit-resizer:focus-visible { outline: 2px solid var(--cockpit-focus); outline-offset: -3px; }
+.personal-cockpit .cockpit-resizer[data-pointer-focus] { outline: none; }
+@media (min-width: 1101px) {
+  .personal-cockpit:not(.is-workspace-view)[data-wide-nav="true"] .cockpit-sidebar nav button { width: 100%; justify-content: flex-start; padding-inline: 12px; gap: 8px; font-size: 12px; }
+  .personal-cockpit:not(.is-workspace-view)[data-wide-nav="true"] .cockpit-brand > span:last-child { display: grid; gap: 3px; }
+  .personal-cockpit:not(.is-workspace-view)[data-wide-nav="true"] .cockpit-brand { align-items: center; gap: 8px; }
+}
+@media (max-width: 1100px) { .cockpit-resizer { display: none; } }

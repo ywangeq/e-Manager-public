@@ -7,7 +7,7 @@ export function createPersonalAutomationService({ repository, ownerRepository, i
   resolveRoute, resolveEmployee, canInvoke, resolveRecoverySession, permissionDigest, resolveSkillScope = () => [], readDesktopPresence = () => null, now = () => new Date().toISOString() }) {
   const inputResolver = createRuntimeTaskExecutionInputResolver({ sessionRepository, resolveEmployee });
   const scopeFor = session => automationScope(resolveRoute({ session, employeeId: "personal-automations", channelId: "desktop" }));
-  const employeeDigest = employee => automationDigest([employee.version, employee.permissionScope, employee.toolBindings || employee.tools, employee.skills, employee.skillIds, employee.mountedSkills, employee.runtimeBinding, resolveSkillScope(employee)]);
+  const employeeDigest = employee => automationDigest([employee.version, employee.permissionScope, employee.toolBindings || employee.tools, employee.skills, employee.skillIds, employee.mountedSkills, employee.runtimeBinding, resolveSkillScope(employee), ...(employee.serviceScope ? [employee.serviceScope] : [])]);
 
   function requireEmployee(session, employeeId, version = null, scopeDigest = null) {
     const employee = resolveEmployee(employeeId);
@@ -216,7 +216,21 @@ export function createPersonalAutomationService({ repository, ownerRepository, i
     const resolved = await inputResolver.resolve(task);
     if (employeeDigest(resolved.employee) !== definition.scopeDigest) throw automationError("personal_automation_authorization_changed");
     const source = await sourceInput(definition);
-    return {...resolved,userText:source.userText};
+    const runs = repository.detail(definition, definition.automationId).runs;
+    if (!runs.some(run => run.taskId === task.taskId)) throw automationError("personal_automation_context_unavailable");
+    const contextTasks = [definition.sourceTaskId, ...runs.map(run => run.taskId)].map(taskId => {
+      const member = runtimeTaskService.readCanonicalExecutionTask(taskId, {tenantScope:definition.tenantScope});
+      if (!member || ["tenantScope","actorIssuer","actorSubjectDigest","employeeId","sessionId","channelId"].some(field => member[field] !== task[field]) ||
+        member.taskType !== "digital_employee_chat" || !member.executionInputRef?.refId ||
+        (taskId !== definition.sourceTaskId && member.sourceSystemId !== "personal-automation")) {
+        throw automationError("personal_automation_context_unavailable");
+      }
+      return member;
+    });
+    return {...resolved,userText:source.userText,contextProjection:{
+      policy:"exact_task_history",sessionId:task.sessionId,routeDigest:resolved.route.routeDigest,
+      taskIds:contextTasks.map(member => member.taskId),inputEntryIds:contextTasks.map(member => member.executionInputRef.refId),
+    }};
   }
   return Object.freeze({create,createFromConversation,authorizeConversation,authorizeScheduledRun,list,detail,change,runOnce,resolveTaskInput,
     markRead:(session,id,taskId) => repository.markRead(scopeFor(session),id,taskId,now())});

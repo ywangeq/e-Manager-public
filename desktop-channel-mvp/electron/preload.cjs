@@ -72,6 +72,8 @@ contextBridge.exposeInMainWorld("desktopChannel", Object.freeze({
   saveReusableArtifact: (input) => ipcRenderer.invoke("desktop:save-reusable-artifact", input),
   listReusableArtifacts: (input) => ipcRenderer.invoke("desktop:list-reusable-artifacts", input),
   getToolParameterCards: (employeeId) => ipcRenderer.invoke("desktop:get-tool-parameter-cards", employeeId),
+  getPendingInteractions: () => ipcRenderer.invoke("desktop:get-pending-interactions"),
+  getEmployeePendingInteractions: (employeeId) => ipcRenderer.invoke("desktop:get-employee-pending-interactions", employeeId),
   requestEmployeeAccess: (input) => ipcRenderer.invoke("desktop:request-employee-access", input),
   getSystemStatus: () => ipcRenderer.invoke("desktop:get-system-status"),
   revalidateSession: () => ipcRenderer.invoke("desktop:revalidate-session"),
@@ -81,7 +83,16 @@ contextBridge.exposeInMainWorld("desktopChannel", Object.freeze({
   loadToolCredentialFromClipboard: (toolId) => ipcRenderer.invoke("desktop:load-tool-credential-from-clipboard", toolId),
   storeToolCredential: (toolId, credentialText) => ipcRenderer.invoke("desktop:store-tool-credential", { toolId, credentialText }),
   clearToolCredential: (toolId) => ipcRenderer.invoke("desktop:clear-tool-credential", toolId),
+  feishuAuthorization: (input) => ipcRenderer.invoke("desktop:feishu-authorization", input),
   subsystemConnections: (input) => ipcRenderer.invoke("desktop:subsystem-connections", input),
+  calendarOpenLink: (input) => ipcRenderer.invoke("desktop:calendar-open-link", input),
+  calendarSnapshot: () => ipcRenderer.invoke("desktop:calendar-snapshot"),
+  localCalendar: (input) => ipcRenderer.invoke("desktop:local-calendar", input),
+  onCalendarChanged: (listener) => {
+    const wrapped = () => listener();
+    ipcRenderer.on("desktop:calendar-changed", wrapped);
+    return () => ipcRenderer.removeListener("desktop:calendar-changed", wrapped);
+  },
   onSubsystemConnectionsChanged: (listener) => {
     const wrapped = () => listener();
     ipcRenderer.on("desktop:subsystem-connections-changed", wrapped);

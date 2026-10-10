@@ -2,21 +2,30 @@ const CHARACTER_CONTRACT_VERSION = "digital-employee-character.v1";
 const MAX_CHARACTER_EMPLOYEES = 24;
 const MAX_STATIC_BYTES = 2 * 1024 * 1024;
 const MAX_ANIMATED_BYTES = 6 * 1024 * 1024;
+const MAX_ASSET_CHARACTERS = 32 * 1024 * 1024;
 
 async function hydrateDesktopBootstrapCharacters(payload = {}, {
   assetCache = new Map(),
   request,
+  includeAnimated = true,
 } = {}) {
   const employees = Array.isArray(payload.employees) ? payload.employees : [];
-  const hydrated = await Promise.all(employees.map(async (employee, index) => {
+  let remaining = MAX_ASSET_CHARACTERS;
+  const hydrated = [];
+  for (const [index, employee] of employees.entries()) {
+    const result = await (async () => {
     if (index >= MAX_CHARACTER_EMPLOYEES) return { ...employee, character: null };
     const descriptor = normalizeCharacterDescriptor(employee?.character, employee?.id);
     if (!descriptor || typeof request !== "function") return { ...employee, character: null };
     try {
       const staticSrc = await loadCharacterAsset(descriptor.staticPath, "static", request, assetCache);
-      const animatedSrc = descriptor.animatedPath
+      if (staticSrc.length > remaining) return { ...employee, character: null };
+      remaining -= staticSrc.length;
+      let animatedSrc = includeAnimated && descriptor.animatedPath
         ? await loadCharacterAsset(descriptor.animatedPath, "animated", request, assetCache).catch(() => "")
         : "";
+      if (animatedSrc.length > remaining) animatedSrc = "";
+      remaining -= animatedSrc.length;
       return {
         ...employee,
         character: {
@@ -28,7 +37,9 @@ async function hydrateDesktopBootstrapCharacters(payload = {}, {
     } catch {
       return { ...employee, character: null };
     }
-  }));
+    })();
+    hydrated.push(result);
+  }
   return { ...payload, employees: hydrated };
 }
 
@@ -56,7 +67,7 @@ function normalizeCharacterDescriptor(value = null, employeeId = "") {
 
 async function loadCharacterAsset(assetPath, variant, request, assetCache) {
   const cached = assetCache.get(assetPath);
-  if (cached) return cached;
+  if (cached) { assetCache.delete(assetPath); assetCache.set(assetPath, cached); return cached; }
   const response = await request(assetPath);
   if (!response?.ok) throw new Error("desktop_character_asset_unavailable");
   const expectedType = variant === "animated" ? "image/webp" : "image/png";
@@ -69,7 +80,12 @@ async function loadCharacterAsset(assetPath, variant, request, assetCache) {
   if (!bytes.length || bytes.length > maxBytes) throw new Error("desktop_character_asset_too_large");
   const dataUrl = `data:${expectedType};base64,${bytes.toString("base64")}`;
   assetCache.set(assetPath, dataUrl);
-  while (assetCache.size > 64) assetCache.delete(assetCache.keys().next().value);
+  let characters = [...assetCache.values()].reduce((total, value) => total + value.length, 0);
+  while (assetCache.size > 64 || characters > MAX_ASSET_CHARACTERS) {
+    const key = assetCache.keys().next().value;
+    characters -= assetCache.get(key).length;
+    assetCache.delete(key);
+  }
   return dataUrl;
 }
 

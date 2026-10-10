@@ -5,12 +5,18 @@ const DESKTOP_PRODUCT = Object.freeze({
 const GROUP_STUDIO_PRODUCT = Object.freeze({
   productId: "e-manager-local-group-studio",
   routeBase: "/api/desktop-releases/group-studio",
-  version: "3.0.0-beta.32",
+  version: "3.0.0-beta.69",
   appId: "com.emanager.local.groupstudio",
   productName: "Group Studio 3.0",
   output: "release-group-studio",
   tagPrefix: "group-studio-v",
 });
+
+// UI series only. Update manifests and immutable artifacts keep their SemVer.
+function displayVersion(product, version) {
+  const match = product === GROUP_STUDIO_PRODUCT && /^3\.\d+\.\d+-beta\.(\d+)$/.exec(String(version));
+  return match ? `beta.1.${match[1]}` : String(version || "");
+}
 
 function productById(id) {
   if (id === DESKTOP_PRODUCT.productId) return DESKTOP_PRODUCT;
@@ -48,4 +54,4 @@ function supportsVersion(product, version) {
   return product === DESKTOP_PRODUCT && /^[012]\./.test(String(version));
 }
 
-module.exports = { DESKTOP_PRODUCT, GROUP_STUDIO_PRODUCT, buildProduct, packagedProduct, productById, groupFeedUrl, supportsVersion };
+module.exports = { DESKTOP_PRODUCT, GROUP_STUDIO_PRODUCT, buildProduct, packagedProduct, productById, groupFeedUrl, supportsVersion, displayVersion };

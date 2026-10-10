@@ -56,6 +56,7 @@ import {
   manualCredentialToolFor,
   mergeConversationHistory,
   mergeRecoveredToolParameterCards,
+  mergeRecoveredToolConfirmations,
   nextCollapsedPetEmployeeId,
   parseSseBody,
   requireDesktopConversationHistoryApi,
@@ -116,6 +117,8 @@ export function App() {
   const [requestTargetEmployeeId, setRequestTargetEmployeeId] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(ASSISTANT_EMPLOYEE_ID);
   const [employeeConversationOpen, setEmployeeConversationOpen] = useState(false);
+  const [pendingInteractionId, setPendingInteractionId] = useState("");
+  const [pendingInteractionNotice, setPendingInteractionNotice] = useState("");
   const [workspaceEmployeeId, setWorkspaceEmployeeId] = useState("");
   const workspaceDraftRef = useRef("");
   const [petEmployeeId, setPetEmployeeId] = useState("");
@@ -412,6 +415,8 @@ export function App() {
     loadedHistoryRevisionRef.current.clear();
     recoveredHistoryTaskIdsRef.current.clear();
     setEmployeeConversationOpen(false);
+    setPendingInteractionId("");
+    setPendingInteractionNotice("");
     setWorkspaceEmployeeId("");
     workspaceDraftRef.current = "";
     setConversations({});
@@ -491,13 +496,28 @@ export function App() {
   useEffect(() => {
     let disposed = false;
     const employeeId = selectedEmployee?.id || "";
-    if (!desktopApi?.getToolParameterCards || !authenticated || !employeeId || sending) return undefined;
-    desktopApi.getToolParameterCards(employeeId).then((result) => {
-      if (disposed || result?.ok !== true || !Array.isArray(result.cards)) return;
-      updateConversation(selectedEmployee, (current) => mergeRecoveredToolParameterCards(current, result.cards));
-    }).catch(() => {});
+    if (!desktopApi?.getEmployeePendingInteractions || !authenticated || !employeeId || sending) return undefined;
+    desktopApi.getEmployeePendingInteractions(employeeId).then((result) => {
+      if (disposed) return;
+      if (result?.ok !== true || !Array.isArray(result.cards)) {
+        if (pendingInteractionId) setPendingInteractionNotice("待办暂时无法核对，请刷新后再试。");
+        return;
+      }
+      if (pendingInteractionId && ![...result.cards,...(result.confirmations || [])].some(card => card.id === pendingInteractionId)) {
+        setPendingInteractionNotice("这条待办已结束或已过期，请刷新待办列表。");
+      }
+      updateConversation(selectedEmployee, (current) => mergeRecoveredToolConfirmations(mergeRecoveredToolParameterCards(current, result.cards),result.confirmations || []));
+    }).catch(() => { if (!disposed && pendingInteractionId) setPendingInteractionNotice("待办暂时无法核对，请刷新后再试。"); });
     return () => { disposed = true; };
-  }, [authenticated, desktopApi, selectedEmployee?.id, sending]);
+  }, [authenticated, desktopApi, selectedEmployee?.id, sending, employeeConversationOpen, systemStatus.actorContextVersion, pendingInteractionId]);
+
+  useEffect(() => {
+    if (!employeeConversationOpen || !pendingInteractionId) return;
+    const card = document.querySelector(`[data-pending-interaction-id="${CSS.escape(pendingInteractionId)}"]`);
+    if (!card) return;
+    card.scrollIntoView({block:"center"});
+    card.focus({preventScroll:true});
+  }, [employeeConversationOpen,pendingInteractionId,messages]);
 
   useEffect(() => {
     const nextPetEmployeeId = nextCollapsedPetEmployeeId({
@@ -742,6 +762,8 @@ export function App() {
     setShowAccessRequest(false);
     setShowEmployeeSwitcher(false);
     setEmployeeConversationOpen(false);
+    setPendingInteractionId("");
+    setPendingInteractionNotice("");
     setWorkspaceEmployeeId("");
     workspaceDraftRef.current = "";
     setConversations({});
@@ -1015,7 +1037,7 @@ export function App() {
     const text = toolConfirmation
       ? `确认执行：${toolConfirmation.displayName || toolConfirmation.action || "受控 Tool 写操作"}`
       : toolParameterCard
-        ? `已提交参数：${toolParameterCard.card.title || toolParameterCard.card.operationId || "受控 Tool 操作"}`
+        ? `已提交${toolParameterCard.card.requestKind === "clarification" ? "回答" : "参数"}：${toolParameterCard.card.title || toolParameterCard.card.operationId || "受控 Tool 操作"}`
         : retryText || inputText.trim();
     const reusableMaterial = toolConfirmation || toolParameterCard || retryText ? null : selectedReusableMaterial;
     if (!canTalk || (!text && !attachments.length && !reusableMaterial)) return;
@@ -1433,7 +1455,7 @@ export function App() {
                 </div>
               </section> : null}
 
-              {dataflowCredentialView.visible && (!feed || !dataflowCredentialView.ready) ? (
+              {!embedded && dataflowCredentialView.visible ? (
                 <div className={`tool-credential-bar ${dataflowCredentialView.ready ? "is-ready" : "is-missing"}`}>
                   <span className="tool-credential-icon" aria-hidden="true"><Key size={14} weight="bold" /></span>
                   <div className="tool-credential-copy">
@@ -1629,7 +1651,7 @@ export function App() {
   );
 
   if (previewMode === "cockpit") {
-    return <><PersonalCockpit employeeConversationState={{ employeeId: selectedEmployee.id, taskId: [...messages].reverse().find(message => message.role === "assistant" && !message.localNotice && !message.cardRecovery)?.taskId || "", pendingCardIds: [...employeeFeedCards(messages).filter(card => card.status === "draft" && Date.parse(card.expiresAt) > Date.now()), ...employeeFeedConfirmations(messages).filter(card => toolConfirmationPresentation(card).pending)].map(card => card.id), draftText: inputText, busy: sending, locked: deviceOperationActive || Boolean(materialPreparation) || attachments.length > 0 || Boolean(selectedReusableMaterial) }}
+    return <><PersonalCockpit displayVersion={environment.displayVersion} employeeConversationState={{ employeeId: selectedEmployee.id, taskId: [...messages].reverse().find(message => message.role === "assistant" && !message.localNotice && !message.cardRecovery)?.taskId || "", pendingCardIds: [...employeeFeedCards(messages).filter(card => card.status === "draft" && Date.parse(card.expiresAt) > Date.now()), ...employeeFeedConfirmations(messages).filter(card => toolConfirmationPresentation(card).pending)].map(card => card.id), draftText: inputText, busy: sending, locked: deviceOperationActive || Boolean(materialPreparation) || attachments.length > 0 || Boolean(selectedReusableMaterial) }}
       renderEmployeeConversation={({ employeeId, taskId, assignmentControl, view, onOpenChat }) => employeeId === selectedEmployee.id && !employeeConversationOpen
         ? ["feed", "progress"].includes(view) ? <EmployeeTaskFeed progressOnly={view === "progress"} employee={selectedEmployee} messages={messages} busy={sending}
           taskId={taskId} task={myTaskById.get(taskId)?.employeeId === employeeId ? myTaskById.get(taskId) : null}
@@ -1649,17 +1671,19 @@ export function App() {
         setWorkspaceEmployeeId(employeeId);
         setEmployeeConversationOpen(false);
         return true;
-      }} onOpenEmployeeConversation={({ employeeId, text }) => {
+      }} onOpenEmployeeConversation={({ employeeId, text, interactionId = "" }) => {
       const employee = employees.find(item => item.id === employeeId);
       if (!authenticated || (employee?.access?.callable !== true || employee?.access?.selectable !== true)) return false;
       if (workspaceEmployeeId && employeeId !== workspaceEmployeeId && (attachments.length || selectedReusableMaterial || materialPreparation || deviceOperationActive)) return false;
       if (workspaceEmployeeId === selectedEmployee.id) workspaceDraftRef.current = inputText;
       selectEmployee(employeeId);
+      setPendingInteractionId(interactionId);
+      setPendingInteractionNotice("");
       if (typeof text === "string" && text.trim()) setInputText(text);
       setEmployeeConversationOpen(true);
       return true;
     }} key={`cockpit-actor-${Number(systemStatus.actorContextVersion || 0)}-${authenticated}`} expanded={expanded} authenticated={authenticated} actor={actor} authError={authError} onLogin={openLogin} onLogout={handleLogout} desktopApi={desktopApi} employees={employees} bootstrapReady={catalogSync.phase === "success"} catalogPhase={catalogSync.phase} onRefreshCatalog={refreshCatalog} myTasks={myTasks} />
-      {expanded && authenticated && employeeConversationOpen ? <EmployeeConversationSheet employee={selectedEmployee} onClose={() => { setEmployeeConversationOpen(false); if (workspaceEmployeeId && selectedEmployee.id !== workspaceEmployeeId) { selectEmployee(workspaceEmployeeId); setInputText(workspaceDraftRef.current); } }}>{employeeConversationContent()}<input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={handleBrowserFileChange} /></EmployeeConversationSheet> : null}
+      {expanded && authenticated && employeeConversationOpen ? <EmployeeConversationSheet employee={selectedEmployee} onClose={() => { setEmployeeConversationOpen(false); setPendingInteractionId(""); setPendingInteractionNotice(""); if (workspaceEmployeeId && selectedEmployee.id !== workspaceEmployeeId) { selectEmployee(workspaceEmployeeId); setInputText(workspaceDraftRef.current); } }}>{pendingInteractionNotice ? <p role="status">{pendingInteractionNotice}</p> : null}{employeeConversationContent()}<input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={handleBrowserFileChange} /></EmployeeConversationSheet> : null}
     </>;
   }
 

@@ -1,18 +1,20 @@
-const CONNECTION_MODES = new Set(["device_session_refresh", "current_user_bearer", "center_current_user_lease"]);
+const CONNECTION_MODES = new Set(["device_session_refresh", "current_user_bearer", "center_current_user_lease", "device_local_cli"]);
 
-export function subsystemConnectionsFromEmployees(employees = []) {
+export function subsystemConnectionsFromEmployees(employees = [], adapterModes = new Map()) {
   const byTool = new Map();
   for (const employee of employees) {
     if (employee.access?.selectable !== true || employee.access?.callable !== true) continue;
     for (const tool of employee.tools || []) {
-      if (!tool.id || !CONNECTION_MODES.has(tool.credentialMode)) continue;
-      let connection = byTool.get(tool.id);
+      const connectionId = tool.connectionId || tool.id;
+      const credentialMode = tool.credentialMode || adapterModes.get(connectionId);
+      if (!tool.id || !CONNECTION_MODES.has(credentialMode)) continue;
+      let connection = byTool.get(connectionId);
       if (!connection) {
-        connection = { id: tool.id, name: tool.name || tool.id, credentialMode: tool.credentialMode, employees: [] };
-        byTool.set(tool.id, connection);
+        connection = { id: connectionId, name: tool.name || connectionId, credentialMode, employees: [] };
+        byTool.set(connectionId, connection);
       }
       // Conflicting binding modes cannot select a credential adapter.
-      if (connection.credentialMode !== tool.credentialMode) connection.credentialMode = "";
+      if (connection.credentialMode !== credentialMode) connection.credentialMode = "";
       if (!connection.employees.some(item => item.id === employee.id)) {
         connection.employees.push({ id: employee.id, name: employee.name || employee.id });
       }

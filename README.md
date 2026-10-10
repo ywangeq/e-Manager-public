@@ -6,9 +6,11 @@ e-Manager 将数字员工、专业技能、业务系统连接和任务交付放�
 
 ## 安装与二次开发
 
-[下载 1.0](https://github.com/ywangeq/e-Manager-public/releases/tag/v1.0.0)：Center 本地启动包、Group Studio 3.x 桌面包（macOS Apple Silicon），以及免费文本摘要 Skill 示例。
+[下载 1.1](https://github.com/ywangeq/e-Manager-public/releases/tag/v1.1.0)：Center 本地启动包、Group Studio 3.x 桌面包（macOS Apple Silicon），以及免费文本摘要 Skill 示例。
 
-本次公开发行 **1.0 对应 Group Studio `3.0.0-beta.32`**。后续开发版本不会自动改变这次发行包；每次发布会单独记录对应版本、源码快照和文件校验值，见 [发行版本对应表](docs/release-versions.md)。
+本次公开发行 **1.1 对应 Group Studio `3.0.0-beta.69`**。后续开发版本不会自动改变这次发行包；每次发布会单独记录对应版本、源码快照和文件校验值，见 [发行版本对应表](docs/release-versions.md)。
+
+1.1 同步了已提交的平台更新：设备读取接口、任务续跑与确认恢复、个人任务和日历界面，以及运维任务展示。日历和邮件功能仍需用户自己的飞书授权、合规员工/Skill 配置及环境联调；公开版不附带业务资产，也不表示这些业务流程已验收。
 
 **Center 源码在本仓库。** 前端位于 `src/`，服务端位于 `server/`，Group Studio 位于 `desktop-channel-mvp/`。源码采用独立发布历史。
 
@@ -143,7 +145,7 @@ Center 与桌面端需要配套部署。本项目不是下载后即可接入任�
 
 ## 业务资产
 
-1.0 提供平台，不附带现有业务数字员工、Skill 包或企业数据。使用时需要配置模型，并导入自己的员工和技能。
+公开版提供平台，不附带现有业务数字员工、Skill 包或企业数据。使用时需要配置模型，并导入自己的员工和技能。
 
 仓库提供一个 [免费文本摘要示例](examples/README.md)，供练习制作和导入 Skill。
 

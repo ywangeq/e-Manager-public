@@ -46,7 +46,7 @@ export function employeeFeedConfirmations(messages = [], now = Date.now()) {
 }
 
 export function employeeFeedProgress({ message = {}, busy = false, status = {}, confirmations = [] } = {}) {
-  if (status.pendingCount) return { label: "等待参数确认", detail: "请确认上方卡片", active: false };
+  if (status.pendingCount) return { label: status.label === "等待你回答" ? "等待回答" : "等待参数确认", detail: status.label === "等待你回答" ? "请回答上方问题" : "请确认上方卡片", active: false };
   if (confirmations.some(card => toolConfirmationPresentation(card).pending)) return { label: "等待操作确认", detail: "请审核上方操作卡片", active: false };
   if (["正在提交", "提交状态待同步"].includes(status.label)) return { label: status.label, detail: "参数确认", active: status.label === "正在提交" };
   if (message.canonicalTaskStatus && isDesktopTaskTerminalStatus(message.canonicalTaskStatus)) {
@@ -80,8 +80,8 @@ export function employeeFeedStatus({ cards = [], busy = false, failed = false, n
   const pending = cards.filter(card => card.status === "draft" && Date.parse(card.expiresAt) > now);
   if (cards.some(card => card.status === "submitting")) return { label: "正在提交", tone: "working", pendingCount: 0 };
   if (cards.some(card => card.status === "submission_unknown")) return { label: "提交状态待同步", tone: "waiting", pendingCount: 0 };
-  if (pending.length) return { label: "等待你确认", tone: "waiting", pendingCount: pending.length };
-  if (cards.length) return { label: "参数卡已过期", tone: "expired", pendingCount: 0 };
+  if (pending.length) return { label: pending.every(card => card.requestKind === "clarification") ? "等待你回答" : "等待你确认", tone: "waiting", pendingCount: pending.length };
+  if (cards.length) return { label: cards.every(card => card.requestKind === "clarification") ? "问题已过期" : "参数卡已过期", tone: "expired", pendingCount: 0 };
   if (busy) return { label: "正在处理", tone: "working", pendingCount: 0 };
   return { label: failed ? "任务受阻" : "可对话", tone: failed ? "blocked" : "idle", pendingCount: 0 };
 }

@@ -1,3 +1,5 @@
+import { validateJsonValue } from "./openapi-contract.mjs";
+import { createAgentLoopContinuation } from "./agent-loop-continuation.mjs";
 import { normalizeAgentExecutionBudget } from "./agent-execution-budget.mjs";
 import crypto from "node:crypto";
 import {
@@ -25,11 +27,12 @@ import {
   MAX_RUNTIME_REQUEST_METRICS,
 } from "./runtime-task-evidence-contract-v1.mjs";
 import { MAX_RUNTIME_SAFE_ACTIVITIES } from "./runtime-safe-activity-contract-v1.mjs";
-import { createRuntimeSafeActivityProjector } from "./runtime-safe-activity-projector.mjs";
+import { createRuntimeSafeActivityProjector, runtimeSafeActivityStatusForResult } from "./runtime-safe-activity-projector.mjs";
 import { executeRuntimeToolActivity } from "./runtime-tool-activity-executor.mjs";
 import {
   appendRuntimeToolEfficiencyCall,
   emptyRuntimeToolEfficiencySource,
+  normalizeRuntimeToolEfficiencySource,
 } from "./runtime-tool-efficiency-contract-v1.mjs";
 
 const DEFAULT_AGENT_LOOP_POLICY = {
@@ -83,14 +86,32 @@ function createResponsesAgentRunner({
 
   async function run({ candidateEvaluator = null, completionContract = null, lease = {}, onTextDelta = null,
     onToolActivity = () => {}, operationReceiptContext = null, persistRuntimeEvidence = true, prompt = {},
-    runtimeTask = null, signal = null, toolExecutor = null, toolParameterContinuation = null, executionBudget = null } = {}) {
+    runtimeTask = null, signal = null, toolExecutor = null, toolParameterContinuation = null, executionBudget = null, executionContinuation = null, onExecutionContinuation = null, initialCompletedToolCall = null } = {}) {
     if (candidateEvaluator !== null && typeof candidateEvaluator !== "function") {
       throw runnerError("agent_completion_evaluator_invalid");
     }
     const budget = normalizeAgentExecutionBudget(executionBudget);
     const runLoopPolicy = budget ? { ...effectiveLoopPolicy, maxTotalTokens: Math.min(budget.maxTotalTokens, effectiveLoopPolicy.maxTotalTokens || Infinity) } : effectiveLoopPolicy;
     const normalizedCompletionContract = normalizeAgentCompletionContract(completionContract);
-    const startedAtMs = now();
+    if ((executionContinuation || onExecutionContinuation) && (candidateEvaluator || normalizedCompletionContract.requiredEvidence.length)) {
+      throw runnerError("agent_loop_continuation_completion_boundary_unsupported");
+    }
+    const continuation = executionContinuation || onExecutionContinuation ? createAgentLoopContinuation({
+      binding: { prompt, taskId: runtimeTask?.taskId || runtimeTask?.id || "", providerRouteId: lease.providerRouteId,
+        model: lease.model, tools: toolExecutor?.toolDefinitions?.() || [], loopPolicy: runLoopPolicy, completionContract: normalizedCompletionContract },
+      continuation: executionContinuation, persist: onExecutionContinuation,
+    }) : { restored: null };
+    const restored = continuation.restored;
+    if (restored?.providerPending && budget) throw runnerError("agent_loop_continuation_usage_unknown");
+    if (restored?.callPrepared && typeof toolExecutor?.recoverRecordedResult !== "function") throw runnerError("agent_loop_continuation_effect_reconciliation_required");
+    const startedAtMs = restored?.startedAtMs ?? now();
+    let lastContinuation = restored;
+    const saveContinuation = async state => {
+      if (!onExecutionContinuation) return;
+      lastContinuation = state;
+      try { await continuation.save(state); }
+      catch { throw runnerError("agent_loop_continuation_persistence_failed"); }
+    };
     const hasTools = Boolean(toolExecutor?.toolDefinitions?.().length);
     const hasCompletionBoundary = Boolean(candidateEvaluator) ||
       normalizedCompletionContract.requiredEvidence.length > 0;
@@ -101,6 +122,43 @@ function createResponsesAgentRunner({
       prompt,
       runtimeTask,
     });
+    let initialCall = null;
+    if (initialCompletedToolCall !== null) {
+      if (restored || runtimeEvidenceState.requestCount !== 0 || runtimeEvidenceState.toolCallCount !== 1 ||
+        !initialCompletedToolCall?.toolCall || !initialCompletedToolCall?.result) {
+        throw runnerError("agent_loop_continuation_initial_call_invalid");
+      }
+      const { toolCall, result } = initialCompletedToolCall;
+      // This private server input accounts for an already completed operation;
+      // it never authorizes execution or replaces owning receipt validation.
+      if (!toolExecutor?.toolDefinitions?.().some(tool => tool.name === toolCall.name) ||
+        !cleanId(toolCall.callId) || cleanId(toolCall.callId) !== toolCall.callId) {
+        throw runnerError("agent_loop_continuation_initial_call_invalid");
+      }
+      const projector = createRuntimeSafeActivityProjector({taskId:runtimeEvidenceState.taskId,toolExecutor});
+      const expected = projector.start({sequence:1,toolCall});
+      const activity = runtimeEvidenceState.activitySnapshot.activities[0];
+      const efficiency = normalizeRuntimeToolEfficiencySource(runtimeTask?.toolEfficiencySource);
+      if (efficiency.taskId !== runtimeEvidenceState.taskId || efficiency.calls.length !== 1 ||
+        efficiency.providerRetryCount !== 0 || efficiency.breaker.status === "triggered" ||
+        efficiency.repeatThreshold !== runLoopPolicy.repeatedToolThreshold ||
+        efficiency.calls[0].activityId !== activity.activityId || efficiency.calls[0].sequence !== 1 ||
+        ["activityId","sequence","kind","subjectId","actionCode"].some(field => activity[field] !== expected[field]) ||
+        activity.status === "started" || activity.status !== runtimeSafeActivityStatusForResult(result) ||
+        result.error === "external_effect_unknown" || result.status === "in_progress" || result.asyncResult?.terminal === false) {
+        throw runnerError("agent_loop_continuation_initial_call_invalid");
+      }
+      initialCall = {toolCall,result,activity,executorRetryCount:efficiency.calls[0].executorRetryCount};
+    }
+    if (onExecutionContinuation && !restored && runtimeEvidenceState.toolCallCount && !initialCall) {
+      throw runnerError("agent_loop_continuation_required");
+    }
+    if (restored) {
+      runtimeEvidenceState.requestCount = Math.max(runtimeEvidenceState.requestCount, restored.requestCount);
+      runtimeEvidenceState.toolCallCount = restored.toolCallCount;
+      runtimeEvidenceState.usage = restored.usage;
+      runtimeEvidenceState.activitySnapshot = restored.activitySnapshot;
+    }
     const initialStopReason = agentStopReason({
       isTaskCancellationRequested,
       loopPolicy: runLoopPolicy,
@@ -112,16 +170,20 @@ function createResponsesAgentRunner({
     let modelRun;
     try {
       if (initialStopReason) {
-        modelRun = boundedAgentRunResult({ reason: initialStopReason });
+        modelRun = boundedAgentRunResult({ reason: initialStopReason,
+          requestCount: runtimeEvidenceState.requestCount, toolCallCount: runtimeEvidenceState.toolCallCount,
+          usage: runtimeEvidenceState.usage, toolCalls: restored?.toolCalls || [] });
+      } else if (restored?.terminalResult) {
+        modelRun = structuredClone(restored.terminalResult);
       } else {
         assertCompletionEvidenceReachable(
           normalizedCompletionContract,
           toolExecutor || EMPTY_TOOL_EXECUTOR,
         );
-        modelRun = hasTools || hasCompletionBoundary || Boolean(budget)
+        modelRun = hasTools || hasCompletionBoundary || Boolean(budget) || Boolean(onExecutionContinuation)
           ? await runResponsesToolLoop({ candidateEvaluator, completionContract: normalizedCompletionContract,
             lease, onToolActivity, operationReceiptContext, prompt, runtimeEvidenceState, runtimeTask, runLoopPolicy, hasTurnBudget: Boolean(budget),
-            signal, startedAtMs, toolExecutor: toolExecutor || EMPTY_TOOL_EXECUTOR, toolParameterContinuation })
+            signal, startedAtMs, toolExecutor: toolExecutor || EMPTY_TOOL_EXECUTOR, toolParameterContinuation, restored, saveContinuation, durable: Boolean(onExecutionContinuation), initialCall })
           : await runStreamingResponse({ lease, onTextDelta, prompt, runtimeEvidenceState, runtimeTask, signal });
       }
     } catch (error) {
@@ -144,6 +206,7 @@ function createResponsesAgentRunner({
     if (finalStopReason === "agent_turn_canceled") {
       modelRun = boundedAgentRunResult({ reason: finalStopReason, ...modelRun.agentRuntime });
     }
+    if (lastContinuation) await saveContinuation({ ...lastContinuation, terminalResult: modelRun });
     return modelRun;
   }
 
@@ -232,8 +295,13 @@ function createResponsesAgentRunner({
 
   async function runResponsesToolLoop({ candidateEvaluator, completionContract, lease, onToolActivity,
     operationReceiptContext, prompt, runtimeEvidenceState, runtimeTask, signal, startedAtMs, toolExecutor,
-    toolParameterContinuation, runLoopPolicy, hasTurnBudget }) {
-    let input = prompt.input.slice();
+    toolParameterContinuation, runLoopPolicy, hasTurnBudget, restored, saveContinuation, durable, initialCall }) {
+    let input = restored?.input || prompt.input.slice();
+    let pendingCalls = restored?.pendingCalls || [];
+    let nextCallIndex = restored?.nextCallIndex || 0;
+    let callPrepared = restored?.callPrepared || false;
+    let recoverPrepared = Boolean(restored?.callPrepared);
+    let providerPending = false;
     let candidateRepairRounds = 0;
     let evidenceContinuationRounds = 0;
     const initialMissingEvidence = missingAgentCompletionEvidence(
@@ -244,16 +312,39 @@ function createResponsesAgentRunner({
       ? completionToolPolicyForEvidence(toolExecutor, initialMissingEvidence)
       : null;
     let completionToolsDisabled = false;
-    let toolCallCount = runtimeEvidenceState.toolCallCount;
+    let toolCallCount = restored?.toolCallCount ?? runtimeEvidenceState.toolCallCount;
     let totalUsage = { ...runtimeEvidenceState.usage };
-    let ephemeralEfficiencySource = emptyRuntimeToolEfficiencySource({
+    let ephemeralEfficiencySource = restored?.efficiencySource || emptyRuntimeToolEfficiencySource({
       taskId: runtimeEvidenceState.taskId,
       repeatThreshold: runLoopPolicy.repeatedToolThreshold,
     });
-    const ephemeralEfficiencyKey = crypto.randomBytes(32);
-    let visionInputCount = 0;
-    let fileInputCount = 0;
-    const toolCalls = [];
+    const ephemeralEfficiencyKey = restored ? Buffer.from(restored.efficiencyKey, "hex") : crypto.randomBytes(32);
+    let visionInputCount = restored?.visionInputCount || 0;
+    let fileInputCount = restored?.fileInputCount || 0;
+    const toolCalls = restored?.toolCalls || (initialCall ? [{
+      callId:cleanId(initialCall.toolCall.callId),name:cleanId(initialCall.toolCall.name),
+      arguments:projectToolArguments(initialCall.toolCall.arguments),result:initialCall.result,
+      status:cleanId(initialCall.result.status),skillId:cleanId(initialCall.result.skillId),
+    }] : []);
+    if (initialCall) ephemeralEfficiencySource = appendRuntimeToolEfficiencyCall(ephemeralEfficiencySource, {
+      activity:initialCall.activity,executorRetryCount:initialCall.executorRetryCount,
+      fingerprintKey:ephemeralEfficiencyKey,result:initialCall.result,toolCall:initialCall.toolCall,
+    }).source;
+    const save = (extra = {}) => saveContinuation({ input, pendingCalls, nextCallIndex, callPrepared, providerPending, toolCalls,
+      startedAtMs, requestCount: runtimeEvidenceState.requestCount, toolCallCount, usage: totalUsage,
+      fileInputCount, visionInputCount, activitySnapshot: runtimeEvidenceState.activitySnapshot,
+      efficiencySource: ephemeralEfficiencySource, efficiencyKey: ephemeralEfficiencyKey.toString("hex"), ...extra });
+    await save();
+    if ((restored || initialCall) && toolCalls.length) {
+      const last = toolCalls.at(-1).result;
+      const terminal = terminalToolTurnPresentation(last);
+      if (terminal) return completedToolTurnResult({ ...terminal, requestCount: runtimeEvidenceState.requestCount,
+        toolCallCount, toolCalls, usage: totalUsage, fileInputCount, visionInputCount });
+      const stop = ephemeralEfficiencySource.breaker.status === "triggered" ? "agent_tool_loop_no_progress" : last?.error === "external_effect_unknown" ? "external_effect_unknown"
+        : last?.error === "tool_not_allowed" ? "agent_tool_not_allowed" : "";
+      if (stop) return boundedAgentRunResult({ reason: stop, requestCount: runtimeEvidenceState.requestCount,
+        toolCallCount, toolCalls, usage: totalUsage, fileInputCount, visionInputCount });
+    }
     while (true) {
       const beforeRequestReason = agentStopReason({
         isTaskCancellationRequested,
@@ -275,142 +366,174 @@ function createResponsesAgentRunner({
           visionInputCount,
         });
       }
-      const canonicalContent = completionToolsDisabled
-        ? []
-        : toolExecutor.availableAgentContent?.() || [];
-      if (!completionToolsDisabled) {
-        visionInputCount = canonicalContent.filter((item) => item?.type === "image").length;
-        fileInputCount = canonicalContent.filter((item) => item?.type === "file").length;
-      }
-      const toolPolicy = toolExecutor.toolExecutionPolicy?.() || {};
-      const declaredTools = toolExecutor.toolDefinitions?.() || [];
-      const requestTools = completionToolsDisabled
-        ? []
-        : completionToolAllowlist
-          ? declaredTools.filter((definition) => completionToolAllowlist.has(definition.name))
-          : declaredTools;
-      const payload = await fetchResponsesPayload(
-        lease,
-        responseRequestForAgentLoop({
-          input,
-          prompt: hasTurnBudget ? { ...prompt,
-            max_output_tokens: Math.min(prompt.max_output_tokens || runLoopPolicy.maxTotalTokens, Math.max(1, runLoopPolicy.maxTotalTokens - Number(totalUsage.totalTokens || 0))) } : prompt,
-          toolChoice: completionToolsDisabled || !requestTools.length
-            ? "none"
-            : completionToolAllowlist
-              ? "required"
-              : toolPolicy.toolChoice,
-          tools: requestTools,
-        }),
-        {
-          canonicalContent,
-          runtimeEvidenceState,
+      if (nextCallIndex >= pendingCalls.length) {
+        pendingCalls = [];
+        nextCallIndex = 0;
+        const canonicalContent = completionToolsDisabled
+          ? []
+          : toolExecutor.availableAgentContent?.() || [];
+        if (!completionToolsDisabled) {
+          visionInputCount = canonicalContent.filter((item) => item?.type === "image").length;
+          fileInputCount = canonicalContent.filter((item) => item?.type === "file").length;
+        }
+        const toolPolicy = toolExecutor.toolExecutionPolicy?.() || {};
+        const declaredTools = toolExecutor.toolDefinitions?.() || [];
+        const requestTools = completionToolsDisabled
+          ? []
+          : completionToolAllowlist
+            ? declaredTools.filter((definition) => completionToolAllowlist.has(definition.name))
+            : declaredTools;
+        providerPending = true;
+        await save();
+        const payload = await fetchResponsesPayload(
+          lease,
+          responseRequestForAgentLoop({
+            input,
+            prompt: hasTurnBudget ? { ...prompt,
+              max_output_tokens: Math.min(prompt.max_output_tokens || runLoopPolicy.maxTotalTokens, Math.max(1, runLoopPolicy.maxTotalTokens - Number(totalUsage.totalTokens || 0))) } : prompt,
+            toolChoice: completionToolsDisabled || !requestTools.length
+              ? "none"
+              : completionToolAllowlist
+                ? "required"
+                : toolPolicy.toolChoice,
+            tools: requestTools,
+          }),
+          {
+            canonicalContent,
+            runtimeEvidenceState,
+            runtimeTask,
+            signal,
+            requestContext: { input },
+            beforeProviderAttempt: save,
+          },
+        );
+        providerPending = false;
+        if (hasTurnBudget && (!Number.isSafeInteger(payload.usage?.total_tokens) || payload.usage.total_tokens < 0)) {
+          throw runnerError("agent_token_usage_unavailable");
+        }
+        totalUsage = addUsage(totalUsage, sanitizeUsage(payload.usage));
+        runtimeEvidenceState.usage = totalUsage;
+        const calls = payload.output.filter((item) => item?.type === "function_call");
+        if (durable && calls.length) {
+          const callIds = new Set();
+          if (calls.length + toolCallCount > MAX_RUNTIME_SAFE_ACTIVITIES) throw runnerError("agent_tool_activity_limit_reached");
+          for (const call of calls) {
+            const definition = requestTools.find(tool => tool.name === call.name);
+            if (!definition) throw runnerError("agent_tool_not_allowed");
+            if (call.call_id !== cleanId(call.call_id) || !cleanId(call.call_id) || callIds.has(call.call_id)) throw runnerError("agent_loop_continuation_invalid");
+            callIds.add(call.call_id);
+            let args;
+            try { args = JSON.parse(call.arguments); } catch { throw runnerError("agent_loop_continuation_invalid"); }
+            if (!args || typeof args !== "object" || Array.isArray(args) ||
+              definition.parameters && !validateJsonValue(definition.parameters, args).ok) throw runnerError("agent_loop_continuation_invalid");
+            assertCompletionToolCallAllowed(completionToolAllowlist, call.name, args);
+          }
+          input.push(...payload.output);
+          pendingCalls = calls;
+          await save();
+        }
+        await persistRuntimeEvidence(runtimeEvidenceState, "model_response_received", runtimeTask);
+        const reportedBudgetStop = hasTurnBudget ? agentStopReason({ isTaskCancellationRequested, loopPolicy: runLoopPolicy, now, runtimeTask, signal, startedAtMs, totalUsage }) : "";
+        // An exact-limit final answer is valid, but no further Tool or request is.
+        if (reportedBudgetStop && (reportedBudgetStop !== "agent_run_token_budget_reached" || calls.length || totalUsage.totalTokens > runLoopPolicy.maxTotalTokens)) {
+          return boundedAgentRunResult({ reason: reportedBudgetStop, requestCount: runtimeEvidenceState.requestCount, toolCallCount, toolCalls, usage: totalUsage, fileInputCount, visionInputCount });
+        }
+        if (!calls.length) {
+          const text = formatOutput(readResponsesOutputText(payload));
+          if (!text) throw new Error("agent_runtime_empty_reply");
+          const candidateEvaluation = await evaluateCompletionCandidate(candidateEvaluator, text);
+          const missingEvidence = missingAgentCompletionEvidence(
+            completionContract,
+            toolExecutor.completionEvidence?.() || [],
+          );
+          if (candidateEvaluation.status === "accepted" && !missingEvidence.length) {
+            const result = {
+              text,
+              ...(candidateEvaluation.value === undefined
+                ? {}
+                : { completionOutcome: candidateEvaluation.value }),
+              agentRuntime: {
+                adapter: "responses_api_tool_loop",
+                realModelRequested: true,
+                status: "model_response_received",
+                requestCount: runtimeEvidenceState.requestCount,
+                toolCallCount,
+                toolCalls,
+                fileInputCount,
+                visionInputCount,
+                usage: totalUsage,
+              },
+            };
+            if (durable) await save({ terminalResult: result });
+            return result;
+          }
+          if (candidateEvaluation.status === "terminal") {
+            throw runnerError(candidateEvaluation.code);
+          }
+          const evidenceRequired = missingEvidence.length > 0;
+          const roundsUsed = evidenceRequired ? evidenceContinuationRounds : candidateRepairRounds;
+          const roundLimit = evidenceRequired
+            ? completionContract.maxEvidenceContinuationRounds
+            : completionContract.maxCandidateRepairRounds;
+          if (roundsUsed >= roundLimit) {
+            throw runnerError(evidenceRequired
+              ? "agent_completion_evidence_missing"
+              : candidateEvaluation.code, {
+              completionCandidateIssues: candidateEvaluation.issues,
+            });
+          }
+          if (evidenceRequired) evidenceContinuationRounds += 1;
+          else candidateRepairRounds += 1;
+          completionToolsDisabled = !evidenceRequired;
+          completionToolAllowlist = evidenceRequired
+            ? completionToolPolicyForEvidence(toolExecutor, missingEvidence)
+            : null;
+          input.push(...payload.output, {
+            role: "user",
+            content: completionFeedbackText(agentCompletionFeedback({
+              code: evidenceRequired ? "required_evidence_missing" : candidateEvaluation.code,
+              issues: candidateEvaluation.issues,
+              missingEvidence,
+              remainingRoundsAfterCurrent: roundLimit - roundsUsed - 1,
+            }), { toolsDisabled: completionToolsDisabled }),
+          });
+          continue;
+        }
+
+        completionToolsDisabled = false;
+
+        const afterRequestReason = agentStopReason({
+          isTaskCancellationRequested,
+          loopPolicy: runLoopPolicy,
+          now,
           runtimeTask,
           signal,
-          requestContext: { input },
-        },
-      );
-      if (hasTurnBudget && (!Number.isSafeInteger(payload.usage?.total_tokens) || payload.usage.total_tokens < 0)) {
-        throw runnerError("agent_token_usage_unavailable");
-      }
-      totalUsage = addUsage(totalUsage, sanitizeUsage(payload.usage));
-      runtimeEvidenceState.usage = totalUsage;
-      await persistRuntimeEvidence(runtimeEvidenceState, "model_response_received", runtimeTask);
-      const calls = payload.output.filter((item) => item?.type === "function_call");
-      const reportedBudgetStop = hasTurnBudget ? agentStopReason({ isTaskCancellationRequested, loopPolicy: runLoopPolicy, now, runtimeTask, signal, startedAtMs, totalUsage }) : "";
-      // An exact-limit final answer is valid, but no further Tool or request is.
-      if (reportedBudgetStop && (reportedBudgetStop !== "agent_run_token_budget_reached" || calls.length || totalUsage.totalTokens > runLoopPolicy.maxTotalTokens)) {
-        return boundedAgentRunResult({ reason: reportedBudgetStop, requestCount: runtimeEvidenceState.requestCount, toolCallCount, toolCalls, usage: totalUsage, fileInputCount, visionInputCount });
-      }
-      if (!calls.length) {
-        const text = formatOutput(readResponsesOutputText(payload));
-        if (!text) throw new Error("agent_runtime_empty_reply");
-        const candidateEvaluation = await evaluateCompletionCandidate(candidateEvaluator, text);
-        const missingEvidence = missingAgentCompletionEvidence(
-          completionContract,
-          toolExecutor.completionEvidence?.() || [],
-        );
-        if (candidateEvaluation.status === "accepted" && !missingEvidence.length) {
-          return {
-            text,
-            ...(candidateEvaluation.value === undefined
-              ? {}
-              : { completionOutcome: candidateEvaluation.value }),
-            agentRuntime: {
-              adapter: "responses_api_tool_loop",
-              realModelRequested: true,
-              status: "model_response_received",
-              requestCount: runtimeEvidenceState.requestCount,
-              toolCallCount,
-              toolCalls,
-              fileInputCount,
-              visionInputCount,
-              usage: totalUsage,
-            },
-          };
-        }
-        if (candidateEvaluation.status === "terminal") {
-          throw runnerError(candidateEvaluation.code);
-        }
-        const evidenceRequired = missingEvidence.length > 0;
-        const roundsUsed = evidenceRequired ? evidenceContinuationRounds : candidateRepairRounds;
-        const roundLimit = evidenceRequired
-          ? completionContract.maxEvidenceContinuationRounds
-          : completionContract.maxCandidateRepairRounds;
-        if (roundsUsed >= roundLimit) {
-          throw runnerError(evidenceRequired
-            ? "agent_completion_evidence_missing"
-            : candidateEvaluation.code, {
-            completionCandidateIssues: candidateEvaluation.issues,
+          startedAtMs,
+          totalUsage,
+        });
+        if (afterRequestReason) {
+          return boundedAgentRunResult({
+            reason: afterRequestReason,
+            requestCount: runtimeEvidenceState.requestCount,
+            toolCallCount,
+            toolCalls,
+            usage: totalUsage,
+            fileInputCount,
+            visionInputCount,
           });
         }
-        if (evidenceRequired) evidenceContinuationRounds += 1;
-        else candidateRepairRounds += 1;
-        completionToolsDisabled = !evidenceRequired;
-        completionToolAllowlist = evidenceRequired
-          ? completionToolPolicyForEvidence(toolExecutor, missingEvidence)
-          : null;
-        input.push(...payload.output, {
-          role: "user",
-          content: completionFeedbackText(agentCompletionFeedback({
-            code: evidenceRequired ? "required_evidence_missing" : candidateEvaluation.code,
-            issues: candidateEvaluation.issues,
-            missingEvidence,
-            remainingRoundsAfterCurrent: roundLimit - roundsUsed - 1,
-          }), { toolsDisabled: completionToolsDisabled }),
-        });
-        continue;
+
+        if (!durable) {
+          input.push(...payload.output);
+          pendingCalls = calls;
+        }
       }
-
-      completionToolsDisabled = false;
-
-      const afterRequestReason = agentStopReason({
-        isTaskCancellationRequested,
-        loopPolicy: runLoopPolicy,
-        now,
-        runtimeTask,
-        signal,
-        startedAtMs,
-        totalUsage,
-      });
-      if (afterRequestReason) {
-        return boundedAgentRunResult({
-          reason: afterRequestReason,
-          requestCount: runtimeEvidenceState.requestCount,
-          toolCallCount,
-          toolCalls,
-          usage: totalUsage,
-          fileInputCount,
-          visionInputCount,
-        });
-      }
-
-      input.push(...payload.output);
-      for (const call of calls) {
+      for (; nextCallIndex < pendingCalls.length;) {
+        const call = pendingCalls[nextCallIndex];
         if (signal?.aborted) {
           return boundedAgentRunResult({ reason: "agent_turn_canceled", requestCount: runtimeEvidenceState.requestCount, toolCallCount, toolCalls, usage: totalUsage, fileInputCount, visionInputCount });
         }
-        if (toolCallCount >= MAX_RUNTIME_SAFE_ACTIVITIES) {
+        if (!callPrepared && toolCallCount >= MAX_RUNTIME_SAFE_ACTIVITIES) {
           return boundedAgentRunResult({
             reason: "agent_tool_activity_limit_reached",
             requestCount: runtimeEvidenceState.requestCount,
@@ -423,9 +546,23 @@ function createResponsesAgentRunner({
         }
         const argumentsValue = parseToolArguments(call.arguments);
         assertCompletionToolCallAllowed(completionToolAllowlist, call.name, argumentsValue);
-        toolCallCount += 1;
+        if (!callPrepared) toolCallCount += 1;
+        callPrepared = true;
         runtimeEvidenceState.toolCallCount = toolCallCount;
+        await save();
+        const recovering = recoverPrepared;
+        if (recovering) {
+          const current = runtimeTask?.activitySnapshot || runtimeTask?.runtimeEvidence?.activitySnapshot || runtimeEvidenceState.activitySnapshot;
+          const previous = runtimeEvidenceState.activitySnapshot.activities;
+          if (current.activities.length < previous.length || current.activities.length > toolCallCount ||
+            previous.some((value,index) => JSON.stringify(value) !== JSON.stringify(current.activities[index]))) {
+            throw runnerError("runtime_safe_activity_persistence_conflict");
+          }
+          runtimeEvidenceState.activitySnapshot = current;
+        }
         const activityExecution = await executeRuntimeToolActivity({
+          recoverRecordedResult: recovering,
+          recoverySequence: recovering ? toolCallCount : null,
           activitySnapshot: runtimeEvidenceState.activitySnapshot,
           onActivity: onToolActivity,
           operationReceiptContext,
@@ -460,6 +597,7 @@ function createResponsesAgentRunner({
           },
           runtimeTask: runtimeTask || { taskId: runtimeEvidenceState.taskId },
           signal,
+          timeoutMs: lease.toolExecutionTimeoutMs || 300_000,
           toolCall: {
             name: call.name,
             arguments: argumentsValue,
@@ -468,6 +606,7 @@ function createResponsesAgentRunner({
           toolExecutor,
           repeatThreshold: runLoopPolicy.repeatedToolThreshold,
         });
+        recoverPrepared = false;
         runtimeEvidenceState.activitySnapshot = activityExecution.activitySnapshot;
         const result = suppressRepeatedSourceParameterCard({
           argumentsValue,
@@ -488,6 +627,9 @@ function createResponsesAgentRunner({
           call_id: cleanId(call.call_id),
           output: JSON.stringify(agentResult),
         });
+        nextCallIndex += 1;
+        callPrepared = false;
+        await save();
         const terminalToolTurn = terminalToolTurnPresentation(result);
         if (terminalToolTurn) {
           return completedToolTurnResult({
@@ -542,7 +684,7 @@ function createResponsesAgentRunner({
 
   async function fetchResponsesPayload(lease, body, {
     canonicalContent = [], runtimeEvidenceState = null, runtimeTask = null, signal = null,
-    requestContext = null,
+    requestContext = null, beforeProviderAttempt = null,
   } = {}) {
     return runProviderRequest(lease, async ({ signal: attemptSignal, timeoutController }) => {
       const payload = await providerAdapterRegistry.requestPayload({ lease, body, canonicalContent, signal: attemptSignal, timeoutController });
@@ -550,7 +692,7 @@ function createResponsesAgentRunner({
         throw createProviderRuntimeError("model_response_contract_invalid");
       }
       return payload;
-    }, { runtimeEvidenceState, runtimeTask, signal, requestContext: requestContext || { input: body.input } });
+    }, { runtimeEvidenceState, runtimeTask, signal, beforeProviderAttempt, requestContext: requestContext || { input: body.input } });
   }
 
   async function runStreamingResponse({ lease, onTextDelta = null, prompt, runtimeEvidenceState, runtimeTask = null, signal = null }) {
@@ -589,7 +731,7 @@ function createResponsesAgentRunner({
   }
 
   async function runProviderRequest(lease, operation, {
-    runtimeEvidenceState = null, runtimeTask = null, signal = null, requestContext = null,
+    runtimeEvidenceState = null, runtimeTask = null, signal = null, requestContext = null, beforeProviderAttempt = null,
   } = {}) {
     const timeoutPolicy = normalizeProviderTimeoutPolicy(
       runtimeTask?.providerTimeoutPolicy || lease.timeoutPolicy || DEFAULT_PROVIDER_TIMEOUT_POLICY,
@@ -604,6 +746,7 @@ function createResponsesAgentRunner({
           runtimeEvidenceState.providerDiagnostic = DEFAULT_PROVIDER_DIAGNOSTIC;
           await persistRuntimeEvidence(runtimeEvidenceState, "model_request_started", runtimeTask);
         }
+        await beforeProviderAttempt?.();
         const timeoutController = providerTimeoutControllerFactory({
           parentSignal: signal,
           policy: timeoutPolicy,

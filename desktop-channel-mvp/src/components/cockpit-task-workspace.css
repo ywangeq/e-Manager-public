@@ -22,11 +22,6 @@
 .cockpit-work-detail .my-task-details { margin: 0; }
 .cockpit-workspace .personal-automations-panel { display: grid; gap: 12px; }
 .cockpit-workspace .personal-automations-panel.is-cockpit > .my-task-lane > header { align-items: center; }
-.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch { position: relative; flex: 0 0 35px; width: 35px; height: 21px; padding: 2px; border: 0; border-radius: 11px; background: #aebbb4; cursor: pointer; }
-.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch[aria-checked="true"] { background: #20866b; }
-.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch > span { display: block; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0002; transition: transform .15s ease; }
-.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch[aria-checked="true"] > span { transform: translateX(14px); }
-.cockpit-workspace .personal-automations-panel.is-cockpit .personal-automation-switch:disabled { opacity: .5; cursor: default; }
 .cockpit-workspace .my-task-details { font-size: 12px; line-height: 1.65; }
 .cockpit-workspace .my-task-result strong { font-size: 12px; }
 .cockpit-workspace .my-task-detail-heading span, .cockpit-workspace .my-task-timeline li small { font-size: 11px; }
@@ -61,10 +56,9 @@
 .personal-cockpit .cockpit-work-detail .artifact-delivery-copy small, .personal-cockpit .cockpit-content-detail .artifact-delivery-copy small { color: var(--cockpit-muted); }
 .personal-cockpit .cockpit-work-detail .artifact-delivery-actions button, .personal-cockpit .cockpit-content-detail .artifact-delivery-actions button, .personal-cockpit .cockpit-work-detail .artifact-open-menu > summary, .personal-cockpit .cockpit-content-detail .artifact-open-menu > summary { background: var(--cockpit-surface); border-color: var(--cockpit-line); color: var(--cockpit-accent); }
 .personal-cockpit .cockpit-work-detail .my-task-result { background: var(--cockpit-hover); border-color: var(--cockpit-line); }
-.personal-cockpit .cockpit-workspace .my-task-lane { border-radius: 20px; padding: 12px; background: var(--cockpit-surface); border-color: rgba(255,255,255,.7); box-shadow: var(--cockpit-shadow); }
+.personal-cockpit .cockpit-workspace .my-task-lane { border-radius: 20px; padding: 12px; background: var(--cockpit-surface); box-shadow: var(--cockpit-shadow); }
 .personal-cockpit .cockpit-workspace .my-task-lane > header { background: transparent; border-color: var(--cockpit-line); }
 .personal-cockpit .cockpit-workspace .personal-automation-action, .personal-cockpit .cockpit-workspace .automation-view-toggle button, .personal-cockpit .cockpit-workspace .automation-refresh { color: var(--cockpit-accent); background: var(--cockpit-surface); border-color: var(--cockpit-line); }
-.personal-cockpit .cockpit-workspace .personal-automation-switch[aria-checked="true"] { background: #6685b4; }
 .personal-cockpit .cockpit-work-detail h2 { overflow-wrap: anywhere; }
 .personal-cockpit .cockpit-detail-actions button:active { background: var(--cockpit-selected); }
 @media (hover: hover) {
@@ -77,3 +71,5 @@
   .personal-cockpit .cockpit-work-detail { padding: var(--cockpit-space-sm); }
   .personal-cockpit .cockpit-work-detail > header { flex-wrap: wrap; }
 }
+
+.personal-cockpit .cockpit-workspace .my-task-lane:not(.automation-task-row) { border-color: rgba(255,255,255,.7); }

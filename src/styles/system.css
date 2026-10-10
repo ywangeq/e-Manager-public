@@ -520,3 +520,10 @@
     border-radius: 8px;
   }
 }
+
+.route-execution-limits { margin-top: 8px; font-size: 12px; }
+.route-execution-limits summary { cursor: pointer; }
+.route-execution-limits form { display: grid; gap: 8px; padding-block: 10px; max-width: 340px; }
+.route-execution-limits label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.route-execution-limits input { width: 95px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: inherit; }
+.route-execution-limits p { margin: 0; line-height: 1.6; color: var(--muted); }

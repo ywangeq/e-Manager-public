@@ -20,7 +20,7 @@ function createStructuredInputToolExecutor({ sourcePolicies = [] } = {}) {
       kind: "tool",
       subjectId: TOOL_ID,
     } : null,
-    safeToolCatalog: () => [{ name: TOOL_NAME, description: "根据当前已读取的权威业务字段，请用户在结构化卡片中补充或确认信息。" }],
+    safeToolCatalog: () => [{ name: TOOL_NAME, description: "请用户补充目标、预算或偏好，或确认已读取的权威业务字段。" }],
     toolDefinitions: () => [structuredInputToolDefinition()],
     validateParameterCardSubmission: validateStructuredInputSubmission,
   });
@@ -51,10 +51,12 @@ function createStructuredInputParameterCard(input = {}) {
 
 function createStructuredInputParameterCardFromRequest(request) {
   const argumentSchema = schemaFromRequest(request);
-  const operationId = `${OPERATION_PREFIX}.${requestDigest(request).slice(0, 24)}`;
+  const requestKind = request.requestKind || "business_fields";
+  const operationId = `${requestKind === "clarification" ? "clarify_user_input" : OPERATION_PREFIX}.${requestDigest(request).slice(0, 24)}`;
   return createToolParameterCard({
     argumentSchema,
-    inputSource: {
+    requestKind,
+    inputSource: requestKind === "clarification" ? null : {
       contractVersion: "tool-parameter-input-source.v1",
       toolId: request.sourceToolId,
       operationId: request.sourceOperationId,
@@ -78,11 +80,13 @@ function createStructuredInputParameterCardFromRequest(request) {
 function validateStructuredInputSubmission(submission = null) {
   if (String(submission?.toolId || "").trim() !== TOOL_ID) return { matched: false, ok: false, error: "tool_parameter_card_tool_mismatch" };
   const operationId = String(submission?.operationId || "").trim();
-  if (!new RegExp(`^${OPERATION_PREFIX}\\.[a-f0-9]{24}$`).test(operationId) ||
+  if (!new RegExp(`^(?:${OPERATION_PREFIX}|clarify_user_input)\\.[a-f0-9]{24}$`).test(operationId) ||
     !/^(?:sha256:)?[a-f0-9]{64}$/.test(String(submission?.schemaDigest || "")) ||
     !plainObject(submission?.arguments)) {
     return { matched: true, ok: false, error: "tool_parameter_card_submission_invalid" };
   }
+  const requestKind = operationId.startsWith("clarify_user_input.") ? "clarification" : "business_fields";
+  if (requestKind === "clarification" && submission.inputSource) return { matched: true, ok: false, error: "tool_parameter_card_submission_invalid" };
   const inputSource = normalizeInputSource(submission.inputSource);
   return {
     matched: true,
@@ -91,6 +95,7 @@ function validateStructuredInputSubmission(submission = null) {
       contractVersion: "tool-parameter-continuation.v1",
       cardId: cleanToken(submission.cardId, 240),
       toolId: TOOL_ID,
+      requestKind,
       operationId,
       schemaDigest: submission.schemaDigest,
       arguments: structuredClone(submission.arguments),
@@ -116,11 +121,12 @@ function structuredInputToolDefinition() {
   return {
     type: "function",
     name: TOOL_NAME,
-    description: "当且仅当你已从受治理 Tool 的实时结果中取得业务字段、必填状态和实时选项时，生成 Channel-neutral 结构化输入卡。字段标签与选项必须来自该结果；不要用它收集内部 ID、Token、审批 Code，也不要把本卡当作外部写操作确认。",
+    description: "生成当前会话结构化问题。requestKind=clarification 用于你自主判断需要用户补充的目标、预算或偏好，不填写来源；不得重收已知业务引用或伪造业务选项。business_fields（默认）必须从受治理 Tool 实时结果取得字段及选项并填写来源。不得收集内部 ID、Token、审批 Code；回答不批准外部写操作。",
     strict: false,
     parameters: {
       type: "object",
       properties: {
+        requestKind: { type: "string", enum: ["business_fields", "clarification"] },
         title: { type: "string", minLength: 1, maxLength: 120 },
         description: { type: "string", maxLength: 500 },
         sourceToolId: { type: "string", minLength: 1, maxLength: 180 },
@@ -157,7 +163,7 @@ function structuredInputToolDefinition() {
           },
         },
       },
-      required: ["title", "sourceToolId", "sourceOperationId", "fields"],
+      required: ["title", "fields"],
       additionalProperties: false,
     },
   };
@@ -165,16 +171,22 @@ function structuredInputToolDefinition() {
 
 function normalizeRequest(value = {}) {
   if (!plainObject(value)) return null;
+  const requestKind = value.requestKind ?? "business_fields";
+  if (!["business_fields", "clarification"].includes(requestKind)) return null;
+  if (requestKind === "clarification" && (Object.hasOwn(value, "sourceToolId") || Object.hasOwn(value, "sourceOperationId"))) return null;
   const title = cleanText(value.title, 120);
   const description = cleanText(value.description, 500);
   const sourceToolId = cleanToken(value.sourceToolId, 180);
   const sourceOperationId = cleanToken(value.sourceOperationId, 180);
-  const rawFields = Array.isArray(value.fields) ? value.fields.slice(0, MAX_FIELDS) : [];
-  if (!title || !sourceToolId || !sourceOperationId || !rawFields.length) return null;
+  const rawFields = Array.isArray(value.fields) ? value.fields : [];
+  if (!title || !rawFields.length || rawFields.length > MAX_FIELDS ||
+    (requestKind === "business_fields" && (!sourceToolId || !sourceOperationId))) return null;
   const fields = rawFields.map(normalizeField);
   if (fields.some((field) => !field) || new Set(fields.map((field) => field.id)).size !== fields.length) return null;
   const initialValues = Object.fromEntries(fields.flatMap((field) => field.initialValue === undefined ? [] : [[field.id, field.initialValue]]));
-  return { title, description, sourceToolId, sourceOperationId, fields, initialValues };
+  return { title, description, sourceToolId, sourceOperationId, fields, initialValues,
+    ...(requestKind === "clarification" ? { requestKind } : {}),
+  };
 }
 
 function managedContextPolicyViolation(request = {}, sourcePolicies = []) {

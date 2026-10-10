@@ -1,17 +1,19 @@
 import crypto from "node:crypto";
+import { resolveDeviceReadReleasePhase } from "./device-read-release-phase.mjs";
 import path from "node:path";
 import { createWorkItemDisplayRepository } from "../work-item-display.mjs";
 import { resolveDigitalWorkforceDataDir } from "../local-data-root.mjs";
 import { createSqliteExecutionAdmissionRepository } from "./execution-admission-repository.mjs";
 import { createRuntimeTaskActorDisplaySnapshotRepository } from "../auth/runtime-task-actor-display-snapshot-repository.mjs";
 import { createIdempotentEffectService } from "./idempotent-effect-service.mjs";
+import { createExecutionContinuationRepository } from "./execution-continuation-repository.mjs";
 import { createOperationReceiptProjector } from "./operation-receipt-projector.mjs";
 import { createSqliteExecutionTaskRepository } from "./sqlite-runtime-task-repository.mjs";
 import { createSqliteTaskMaterialBindingRepository } from "./sqlite-task-material-binding-repository.mjs";
 import { createSqliteToolCallConfirmationRepository } from "./sqlite-tool-call-confirmation-repository.mjs";
 import { createSqliteToolParameterContinuationRepository } from "./sqlite-tool-parameter-continuation-repository.mjs";
 import { bindTaskSkillPublications } from "../skill-publication-task-bindings.mjs";
-import { normalizeExecutionTaskSubmission } from "./runtime-task-contract-v1.mjs";
+import { EXECUTION_TASK_TERMINAL_STATUSES, normalizeExecutionTaskSubmission } from "./runtime-task-contract-v1.mjs";
 
 const EXECUTION_TASK_DATABASE_FILE = "execution-tasks.sqlite";
 const EXECUTION_ADMISSION_DATABASE_FILE = "execution-admissions.sqlite";
@@ -75,6 +77,7 @@ function createRuntimeTaskPersistence({ env = process.env, projectRoot, now = ne
     const taskRepository = own(createSqliteExecutionTaskRepository({
       databasePath,
       personalAutomationSchemaPhase: "activate",
+      deviceReadSchemaPhase: resolveDeviceReadReleasePhase({ projectRoot, env }),
       efficiencyFingerprintKey: deriveRuntimeKey(encryptionRootKey, "runtime-tool-efficiency-fingerprint.v1"),
       receiptEncryptionKey: deriveRuntimeKey(encryptionRootKey, "execution-operation-receipt.v1"),
     }));
@@ -123,6 +126,20 @@ function createRuntimeTaskPersistence({ env = process.env, projectRoot, now = ne
     const operationReceiptProjector = createOperationReceiptProjector({
       digestKey: deriveRuntimeKey(encryptionRootKey, "execution-operation-digest.v1"),
     });
+    const executionContinuationRepository = createExecutionContinuationRepository({
+      rootDirectory: path.join(dataDir, "execution-continuations"),
+      encryptionKey: deriveRuntimeKey(encryptionRootKey, "execution-continuation.encryption.v1"),
+      assertOwnership: ({ identity, ownership }) => {
+        const current = repository.get(identity.taskId, { tenantScope: identity.tenantScope });
+        return continuationTaskMatches(current, identity) && current.status === "running" &&
+          current.lease?.leaseId === ownership.leaseId && current.lease?.workerIdDigest === ownership.workerIdDigest &&
+          current.lease?.fencingToken === ownership.fencingToken && current.lease.expiresAt > new Date().toISOString();
+      },
+      assertTerminal: identity => {
+        const current = repository.get(identity.taskId, { tenantScope: identity.tenantScope });
+        return continuationTaskMatches(current, identity) && EXECUTION_TASK_TERMINAL_STATUSES.includes(current.status);
+      },
+    });
     return Object.freeze({
       authority: Object.freeze({
         kind: "channel_neutral_execution_task_database",
@@ -142,6 +159,7 @@ function createRuntimeTaskPersistence({ env = process.env, projectRoot, now = ne
       artifactObjectRoot,
       mode: "sqlite",
       idempotentEffectService,
+      executionContinuationRepository,
       operationReceiptProjector,
       productionReady: false,
       repository,
@@ -158,6 +176,11 @@ function createRuntimeTaskPersistence({ env = process.env, projectRoot, now = ne
     }
     throw error;
   }
+}
+
+function continuationTaskMatches(task, identity) {
+  return Boolean(task && ["tenantScope", "taskId", "actorIssuer", "actorSubjectDigest", "employeeId",
+    "sessionId", "inputDigest", "executionDeadlineAt"].every(field => task[field] === identity[field]));
 }
 
 function deriveRuntimeKey(rootKey, domain) {

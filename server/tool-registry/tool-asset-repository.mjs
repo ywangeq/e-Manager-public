@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { compileOpenApiOperations, openApiContractDigest, capabilityWritePolicyDigests } from "../agent-runtime/openapi-contract.mjs";
 
 const FIELDS = ["toolId", "displayName", "description", "ownerDepartmentId", "sourceSystemId", "risk", "permissionBoundary", "writebackBoundary", "baseUrl", "credentialRef", "openApiDocument"];
@@ -70,6 +71,25 @@ export function createToolAssetRepository({ databasePath, validateReferences, re
       return get(normalized.toolId);
     });
   }
+  // Additive source-reviewed builtin migration. Never upgrade/overwrite an
+  // existing asset, publication revision, draft or administrator disablement.
+  function addBuiltins({ migrationId, items }) {
+    const marker = `builtin-addition:${token(migrationId)}`;
+    if (!Array.isArray(items) || !items.length || new Set(items.map(item => token(item.id))).size !== items.length) throw failure("tool_asset_migration_invalid");
+    return transaction(() => {
+      if (db.prepare("SELECT id FROM tool_asset_meta WHERE id=?").get(marker)) return false;
+      for (const item of items) {
+        const current = row(item.id);
+        if (current) {
+          if (current.draft_json || !isDeepStrictEqual(JSON.parse(current.published_json || "null"), { kind: "builtin", catalog: item })) throw failure("tool_asset_seed_conflict");
+          continue;
+        }
+        db.prepare("INSERT INTO tool_assets VALUES(?,1,NULL,?,1,0,?)").run(token(item.id), JSON.stringify({ kind: "builtin", catalog: item }), now());
+      }
+      db.prepare("INSERT INTO tool_asset_meta VALUES(?)").run(marker);
+      return true;
+    });
+  }
   function decide({ toolId, expectedVersion, decision, actorDigest }) {
     if (!["publish", "reject", "disable"].includes(decision)) throw failure("tool_asset_decision_invalid");
     return transaction(() => {
@@ -124,7 +144,7 @@ export function createToolAssetRepository({ databasePath, validateReferences, re
     return { ...asset, assetRevision: current.published_revision };
   }
   if (readOnly) return Object.freeze({ get, review, list, catalog, publishedAssets, resolvePublished, close: () => db.close() });
-  return Object.freeze({ seedBuiltins, submit, decide, get, review, list, catalog, publishedAssets, resolvePublished, close: () => db.close() });
+  return Object.freeze({ seedBuiltins, addBuiltins, submit, decide, get, review, list, catalog, publishedAssets, resolvePublished, close: () => db.close() });
 }
 function normalizeStoredAsset(asset) {
   const normalized = normalizeAsset(Object.fromEntries(FIELDS.map(key => [key, asset[key]])));

@@ -809,7 +809,7 @@ function cleanShortText(value = "") {
 
 function normalizeCredentialMode(value = "") {
   const mode = cleanShortText(value).replaceAll("-", "_");
-  return ["current_user_bearer", "center_current_user_lease", "device_session_refresh", "employee_app_lease"].includes(mode) ? mode : "";
+  return ["current_user_bearer", "center_current_user_lease", "device_session_refresh", "employee_app_lease", "device_local_cli"].includes(mode) ? mode : "";
 }
 
 function hasUnsafeText(values = []) {

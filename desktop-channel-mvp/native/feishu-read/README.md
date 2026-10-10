@@ -1,0 +1,19 @@
+# Group Studio private Feishu read helper checkpoint
+
+This source is composed into Group Electron and the optional Center Device-read transport. It does not change the installed CLI or independently enable meeting queries. Per invocation it snapshots the explicitly verified app/user, obtains an official CLI-managed credential once, and uses that same credential for identity verification and a primary-calendar instance query. Credentials stay inside the local helper. Switching users cancels/discards the old invocation at the owning Device association boundary.
+
+Build inside official `larksuite/cli` source pinned to v1.0.70, commit `80b36453621b6b5cb205ba4013244a87b340fed7`, because Go internal imports are module-scoped. The upstream commit archive SHA-256 is `ead170a5b065e7db5e9183c754b227de9b41f633e6c3c34e5e7c7798a9d7147d`. Do not build against a floating tag or newer checkout without re-auditing authentication behavior. Preserve the upstream MIT notice in `LICENSE` when packaging.
+
+The tracked builder verifies the archive SHA-256, extracts a fresh module, verifies the original MIT notice, copies the narrow helper, runs its tests and builds with Go 1.27.2 (`GOTOOLCHAIN=local`, explicit host target, no VCS/build ID). From the repository root:
+
+```sh
+node desktop-channel-mvp/tools/build-feishu-read-helper.mjs --source-archive /absolute/path/source.tar.gz --go /absolute/path/go/bin/go
+```
+
+Outputs stay ignored under `data/local/feishu-read-helper/<platform>-<arch>/`: a content-addressed read-only binary, MIT notice and provenance manifest with source/binary hashes. macOS local builds sign the helper before computing its digest. Group packaging verifies the sealed resources before and after signing; a changed signing identity requires an explicitly reviewed reseal pipeline and must not silently rewrite checksums. Do not commit upstream archives, credentials or binaries. Main advertises the capability only after verifying the package-owned resource namespace; the client rechecks the binary per invocation. The path/digest check alone is not an atomic same-file execution guarantee.
+
+Center remains unavailable unless its separate Device schema has been prepared and activated, and a governed builtin Tool asset is published with the exact `device_local_cli` credential mode. An enabled employee binding must declare that same mode and no writeback. Legacy robot/server credential bindings do not grant personal calendar reads. Real Group package installation, production activation, structured calendar Artifact/week consumption and opt-in scheduled sync remain acceptance work.
+
+The helper accepts one bounded private stdin JSON request (`group-feishu-read.v2`, appId, openId, optional unionId, start, end); no identity or credential argv. It supports only Feishu HTTPS, fixed identity/calendar GETs, a window of at most seven days, at most 100 events and a 32 KiB result. Each projected event carries its stable primary-calendar instance eventRef, title and start/end only. Missing/nonzero success codes, missing data and partial responses fail instead of reporting an empty agenda. The official SDK instance-view contract declares items,omitempty; a successful data:{} returns an explicit empty events array. Errors expose only a generic failure. The parent must enforce cancellation/timeout and never route request identity or credentials through the renderer or Center; official token refresh itself has no context parameter.
+
+The companion canonical Runtime database extension is default-inactive and stores only safe binding digests/status, never calendar bodies or credentials. Its feature metadata is a temporary Runtime Device-owned migration boundary, pending a shared extension registry; deployment/rollback compatibility, Device transport, employee governance and real Group conversation/week-calendar acceptance remain separate gates.

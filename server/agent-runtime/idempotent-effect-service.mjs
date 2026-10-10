@@ -113,7 +113,15 @@ function createIdempotentEffectService({ repository } = {}) {
     return normalized;
   }
 
-  return Object.freeze({ execute });
+  // Historical receipt read only. Callers must own current actor/task access;
+  // this never authorizes, prepares, recovers or performs an external effect.
+  async function readRecordedResult({ request } = {}) {
+    const normalizedRequest = normalizeOperationReceiptRequest(request);
+    const existing = await repository.readOperationReceiptExact(operationReceiptIdentity(normalizedRequest));
+    return existing ? serviceResult(requireMatchingReceipt(existing, normalizedRequest), { replayed: true }) : null;
+  }
+
+  return Object.freeze({ execute, readRecordedResult });
 }
 
 async function requireCurrentAuthorization(authorizeCurrentOperation, request) {

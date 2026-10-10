@@ -7,7 +7,7 @@ const MAX_FIELDS = 24;
 const MAX_DEPTH = 4;
 const SENSITIVE_KEY = /authorization|bearer|token|secret|password|cookie|api[-_]?key|credential/i;
 
-function createToolParameterCard({ argumentSchema = {}, inputSource = null, minimumFieldCount = 2, operation = {}, resolveManagedReferenceLabel = null, suggestedArguments = {}, toolId = "" } = {}) {
+function createToolParameterCard({ argumentSchema = {}, inputSource = null, requestKind = null, minimumFieldCount = 2, operation = {}, resolveManagedReferenceLabel = null, suggestedArguments = {}, toolId = "" } = {}) {
   const profile = renderableSchemaProfile(argumentSchema);
   if (!profile.supported) return null;
   const normalizedToolId = cleanId(toolId || operation.toolId);
@@ -23,6 +23,7 @@ function createToolParameterCard({ argumentSchema = {}, inputSource = null, mini
   return {
     contractVersion: TOOL_PARAMETER_CARD_CONTRACT_VERSION,
     status: "draft",
+    ...(["business_fields", "clarification"].includes(requestKind) ? { requestKind } : {}),
     toolId: normalizedToolId,
     operationId,
     schemaDigest: parameterCardSchemaDigest({ argumentSchema: schema, operationId, toolId: normalizedToolId }),
@@ -131,6 +132,7 @@ function normalizeToolParameterCard(value = null, { includeProtectedEvidence = f
     toolId: cleanId(value.toolId),
     operationId: cleanId(value.operationId),
     schemaDigest,
+    ...(["business_fields", "clarification"].includes(value.requestKind) ? { requestKind: value.requestKind } : {}),
     title: cleanText(value.title || value.operationId, 160),
     description: cleanText(value.description, 500),
     method: cleanText(value.method, 12).toUpperCase(),

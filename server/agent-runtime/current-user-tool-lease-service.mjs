@@ -45,6 +45,7 @@ function createCurrentUserToolCredentialLeaseService({
     const key = cacheKey({ binding, employeeId: normalizedEmployeeId, identity, scopeDigest });
     if (forceRefresh) evictKey(key);
     const checkedAt = trustedNow(now);
+    clearExpired(checkedAt);
     const cached = cache.get(key);
     if (cached && Date.parse(cached.expiresAt) - renewalSkewMs > checkedAt.getTime()) return cached;
     evictKey(key);
@@ -121,9 +122,21 @@ function createCurrentUserToolCredentialLeaseService({
       expiresAt,
       authorization: `Bearer ${credential.accessToken}`,
     });
+    clearExpired(issuedAt);
+    while (cache.size >= 512) evictKey(cache.keys().next().value);
     cache.set(key, lease);
     leaseKeyByRef.set(leaseRef, key);
     return lease;
+  }
+
+  function clearExpired(checkedAt = trustedNow(now)) {
+    let removed = 0;
+    for (const [key, lease] of cache) {
+      if (Date.parse(lease.expiresAt) > checkedAt.getTime()) continue;
+      evictKey(key);
+      removed += 1;
+    }
+    return removed;
   }
 
   function invalidate(leaseRef) {
@@ -154,6 +167,7 @@ function createCurrentUserToolCredentialLeaseService({
   return Object.freeze({
     acquireForOperation,
     bindingFor,
+    clearExpired,
     contractVersion: SERVICE_CONTRACT_VERSION,
     invalidate,
     revokeSubject,

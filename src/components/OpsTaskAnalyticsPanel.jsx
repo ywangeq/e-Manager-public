@@ -1,3 +1,4 @@
+import { smoothTrendPath } from "../lib/smoothTrend.js";
 import { useEffect, useMemo, useState } from "react";
 import { requestOpsRuntimeTaskAnalytics } from "../lib/opsIncidents";
 import { buildOpsTrendSeries, formatOpsElapsed, groupOpsErrorCodes, opsDonutArc, opsSeriesColors } from "../lib/opsTaskAnalytics";
@@ -90,7 +91,7 @@ export function DailyTrend({ daily, series, metric, selectedDate, onSelect }) {
         <title>每日{metricLabels[metric]}，最多展示前 12 位员工，其余合并</title>
         {Array.from({ length: 5 }, (_, i) => <g key={i}><line x1={left} x2={width - right} y1={y(i * step)} y2={y(i * step)} className="ops-analytics-grid" /><text x={left - 10} y={y(i * step) + 4} textAnchor="end">{count(i * step)}</text></g>)}
         {daily.map((day, i) => <g key={day.date}><line x1={x(i)} x2={x(i)} y1={top} y2={height - bottom} className="ops-analytics-grid" />{(daily.length <= 14 || i % 3 === 0 || i === daily.length - 1) ? <text x={x(i)} y={height - 9} textAnchor="middle">{day.date.slice(5)}</text> : null}</g>)}
-        {visible.map((item) => <g key={item.id}><polyline fill="none" stroke={item.color} strokeWidth="2.5" points={item.values.map((value, i) => `${x(i)},${y(value)}`).join(" ")} />{item.values.map((value, i) => <circle key={i} cx={x(i)} cy={y(value)} r="3" fill="white" stroke={item.color} strokeWidth="1.5" />)}</g>)}
+        {visible.map((item) => <g key={item.id}><path fill="none" stroke={item.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d={smoothTrendPath(item.values.map((value, i) => ({ x: x(i), y: Number.isFinite(value) ? y(value) : NaN })))} />{item.values.map((value, i) => <circle key={i} cx={x(i)} cy={y(value)} r="3" fill="white" stroke={item.color} strokeWidth="1.5" />)}</g>)}
         {daily.map((day, i) => <OpsChartTooltip key={`${metric}:${day.date}`} content={tooltip(day, i)} onOpenChange={(open) => setHoveredDate(open ? day.date : "")}>
           {(props) => <rect {...props} aria-label={`${day.date} ${metricLabels[metric]}详情`} x={Math.max(left, x(i) - plotWidth / Math.max(1, daily.length - 1) / 2)} y={top} width={plotWidth / Math.max(1, daily.length - 1) * (i === 0 || i === daily.length - 1 ? 0.5 : 1)} height={plotHeight} fill={focusDate === day.date ? "rgba(57,124,246,0.08)" : "transparent"} onClick={() => onSelect(day.date)} />}
         </OpsChartTooltip>)}

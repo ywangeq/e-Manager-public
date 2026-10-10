@@ -20,10 +20,11 @@ export function evaluateDigitalEmployeeEntitlement({
   const explicitlyGranted = authenticated && hasExplicitGrant(session, employeeId);
   const departmentGrantScopeId = authenticated ? departmentGrantScope(session, employee) : "";
   const departmentGranted = Boolean(departmentGrantScopeId);
+  const personalGranted = authenticated && employee.level === "业务级" && employee.serviceScope === "personal" && employee.permissionScope === "currentUser";
   const approvedRequest = authenticated
     ? accessRequests.find((request) => requestGrantsEmployee(request, session, employeeId, employeeVersion))
     : null;
-  const entitled = authenticated && (isDefaultAssistant || explicitlyGranted || departmentGranted || Boolean(approvedRequest));
+  const entitled = authenticated && (isDefaultAssistant || explicitlyGranted || departmentGranted || personalGranted || Boolean(approvedRequest));
   const requestable = authenticated && !isSystemEmployee && !entitled && employeeAvailable;
   const selectable = entitled && employeeAvailable;
 
@@ -43,7 +44,7 @@ export function evaluateDigitalEmployeeEntitlement({
           ? "session-permission"
           : departmentGranted
             ? `department-scope:${cleanId(departmentGrantScopeId)}`
-            : ""
+            : personalGranted ? "current-user-personal-service" : ""
     ),
     reasonCode: entitlementReason({
       authenticated,

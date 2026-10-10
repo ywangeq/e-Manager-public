@@ -11,12 +11,15 @@ async function executeRuntimeToolActivity({
   activitySnapshot = null,
   onActivity = null,
   confirmedToolCall = false,
+  recoverRecordedResult = false,
+  recoverySequence = null,
   operationReceiptContext = null,
   persistActivity = null,
   persistEfficiency = null,
   repeatThreshold = 3,
   runtimeTask = null,
   signal = null,
+  timeoutMs = 300_000,
   toolCall = {},
   toolExecutor = null,
 } = {}) {
@@ -41,11 +44,25 @@ async function executeRuntimeToolActivity({
   let snapshot = activitySnapshot
     ? normalizeRuntimeSafeActivitySnapshot(activitySnapshot, { expectedTaskId: taskId })
     : projector.snapshot([]);
-  if (snapshot.activities.length >= 50) {
+  if (snapshot.activities.length >= 50 && !recoverRecordedResult) {
     throw executorError("agent_tool_activity_limit_reached");
   }
-  const sequence = snapshot.activities.length + 1;
-  let activity = null;
+  const sequence = recoverRecordedResult ? recoverySequence : snapshot.activities.length + 1;
+  if (recoverRecordedResult && (!Number.isSafeInteger(sequence) || sequence < 1 ||
+    sequence > 50 || (sequence < snapshot.activities.length && !confirmedToolCall) || sequence > snapshot.activities.length + 1 ||
+    typeof toolExecutor.recoverRecordedResult !== "function")) throw executorError("agent_loop_continuation_effect_reconciliation_required");
+  let activity = recoverRecordedResult ? snapshot.activities.find(item => item.sequence === sequence) || null : null;
+  const existingTerminal = activity && activity.status !== "started";
+  if (activity) {
+    const expected = projector.start({sequence,toolCall});
+    if (["activityId","sequence","kind","subjectId","actionCode"].some(field => expected[field] !== activity[field])) {
+      throw executorError("runtime_safe_activity_identity_conflict");
+    }
+  }
+  if (recoverRecordedResult && (!existingTerminal ||
+    !runtimeTask?.toolEfficiencySource?.calls?.some(item => item.activityId === activity.activityId && item.sequence === sequence))) {
+    throw executorError("agent_loop_continuation_effect_reconciliation_required");
+  }
   let executorRetryCount = 0;
 
   async function publish(nextActivity, phase) {
@@ -97,17 +114,18 @@ async function executeRuntimeToolActivity({
   if (toolCall.name !== "run_mounted_skill") await lifecycle.start();
   let result;
   try {
-    result = await toolExecutor.execute(toolCall, {
+    result = await executeWithTimeout(signal, timeoutMs, toolSignal => toolExecutor[recoverRecordedResult ? "recoverRecordedResult" : "execute"](toolCall, {
       confirmedToolCall: confirmedToolCall === true,
       onControlledRetry: () => {
         executorRetryCount += 1;
       },
       operationReceiptContext: effectiveOperationReceiptContext,
       safeActivity: lifecycle,
-      signal,
+      signal: toolSignal,
       runtimeTask,
-    });
+    }));
   } catch (error) {
+    if (recoverRecordedResult) throw error;
     if (!activity) await lifecycle.start();
     activity = projector.finish({ activity, status: "failed", toolCall });
     await publish(activity, "terminal");
@@ -119,6 +137,17 @@ async function executeRuntimeToolActivity({
       toolCall,
     });
     throw error;
+  }
+  if (recoverRecordedResult && (!["succeeded","definitive_failed"].includes(result?.externalEffectStatus) ||
+    result?.status === "in_progress" || result?.asyncResult?.terminal === false)) {
+    throw executorError("agent_loop_continuation_effect_reconciliation_required");
+  }
+  if (existingTerminal) {
+    if (activity.status !== runtimeSafeActivityStatusForResult(result)) throw executorError("runtime_safe_activity_persistence_conflict");
+    const entry = runtimeTask.toolEfficiencySource.calls.find(item => item.activityId === activity.activityId);
+    return Object.freeze({activity,activitySnapshot:snapshot,
+      efficiency:{analysis:{breakerTriggered:runtimeTask.toolEfficiencySource.breaker.status === "triggered"}},
+      executorRetryCount:entry.executorRetryCount,result});
   }
   if (!activity) await lifecycle.start();
   activity = projector.finish({
@@ -153,3 +182,21 @@ function executorError(code) {
 }
 
 export { executeRuntimeToolActivity };
+
+async function executeWithTimeout(parent, timeoutMs, execute) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 172_800_000) throw executorError("tool_execution_timeout_invalid");
+  const controller = new AbortController();
+  let timer, abort;
+  const interrupted = new Promise((_, reject) => {
+    abort = () => { const reason = parent?.reason || executorError("agent_turn_canceled"); controller.abort(reason); reject(reason); };
+    parent?.addEventListener("abort", abort, { once: true });
+    timer = setTimeout(() => { const error = executorError("tool_execution_timeout"); controller.abort(error); reject(error); }, timeoutMs);
+    if (parent?.aborted) abort();
+  });
+  try {
+    return await Promise.race([Promise.resolve().then(() => {
+      if (controller.signal.aborted) throw controller.signal.reason;
+      return execute(controller.signal);
+    }), interrupted]);
+  } finally { clearTimeout(timer); parent?.removeEventListener("abort", abort); }
+}

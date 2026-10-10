@@ -35,7 +35,7 @@
 
 .digital-employee-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -446,6 +446,12 @@
 
 .digital-employee-level.is-business {
   border-color: rgba(110, 168, 255, 0.34);
+}
+
+.digital-employee-level.is-personal {
+  border-color: var(--line);
+  color: var(--text);
+  background: var(--control-bg);
 }
 
 .digital-employee-muted,

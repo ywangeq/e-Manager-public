@@ -4,9 +4,9 @@ import { MarkdownMessage } from "./MarkdownMessage.jsx";
 import { runStatusLabel } from "../lib/groupRunHistory.js";
 import { cockpitRecordTimeLabel } from "../lib/cockpitProgressPresentation.js";
 
-export function EmployeeTaskActivity({ employeeId, taskId, myTasks, onSelect, onOpenChat, onOpenLink }) {
+export function EmployeeTaskActivity({ employeeId, taskId, taskIds = null, taskSetTitle, taskSetLoadState, onRetryTaskSet, onExitTaskSet, myTasks, onSelect, onOpenChat, onOpenLink }) {
   const [collapsedTaskId, setCollapsedTaskId] = useState("");
-  const tasks = (myTasks?.page?.tasks || []).filter(task => task.employeeId === employeeId &&
+  const tasks = (myTasks?.page?.tasks || []).filter(task => task.employeeId === employeeId && (!taskIds || taskIds.includes(task.id)) &&
     ["desktop-device-channel", "personal-automation"].includes(task.sourceSystemId) && ["digital_employee_chat", "desktop_material_chat"].includes(task.taskType));
   const task = taskId ? tasks.find(item => item.id === taskId) : tasks[0];
   const state = task ? myTasks?.details?.[task.id] : null;
@@ -16,7 +16,9 @@ export function EmployeeTaskActivity({ employeeId, taskId, myTasks, onSelect, on
   const detail = state?.detail;
   const latest = detail?.activitySnapshot?.activities.at(-1);
   return <section className="group-entry-panel employee-task-activity" aria-label="员工活动记录">
-    <div className="group-entry-heading"><div><span>活动</span><strong>{task?.employeeName || "数字员工"}</strong></div><button type="button" onClick={onOpenChat}>查看员工对话</button></div>
+    <div className="group-entry-heading"><div><span>{taskIds ? "任务集" : "活动"}</span><strong>{taskSetTitle || task?.employeeName || "数字员工"}</strong></div>{taskIds ? <button type="button" onClick={onExitTaskSet}>返回全部活动</button> : <button type="button" onClick={onOpenChat}>查看员工对话</button>}</div>
+    {taskIds && taskSetLoadState === "loading" ? <p role="status">正在同步关联记录…</p> : null}
+    {taskIds && taskSetLoadState === "error" ? <p role="status">部分关联记录暂不可用。<button type="button" onClick={onRetryTaskSet}>重试</button></p> : null}
     {myTasks?.error ? <p role="alert">任务历史同步失败，请刷新后重试。</p> : null}
     <div className="group-activity-groups">{tasks.map(item => <section className="group-activity-group" key={item.id}>
       <header><button type="button" aria-pressed={item.id === task?.id} aria-expanded={item.id === task?.id && collapsedTaskId !== item.id} onClick={() => {

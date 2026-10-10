@@ -2,11 +2,18 @@ import { scheduleDescription, scheduleTimezoneLabel } from "../../lib/schedulePr
 import { CalendarPlus, History, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchScheduleConfigurations } from "../../lib/digitalEmployeeSchedules";
+import PersonalEmployeeSchedulePanel from "./PersonalEmployeeSchedulePanel";
 import ScheduleStatus from "./ScheduleStatus";
 import EmployeeScheduleSheet from "./EmployeeScheduleSheet";
 export { employeeScheduleRecords } from "../../lib/digitalEmployeeSchedules";
 
-export default function EmployeeSchedulePanel({ employee, isSystemAdmin = false, onScheduleChange = null }) {
+export default function EmployeeSchedulePanel(props) {
+  return props.employee.serviceScope === "personal"
+    ? <PersonalEmployeeSchedulePanel/>
+    : <SystemEmployeeSchedulePanel {...props}/>;
+}
+
+function SystemEmployeeSchedulePanel({ employee, isSystemAdmin = false, onScheduleChange = null }) {
   const [schedules, setSchedules] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sheet, setSheet] = useState(null);

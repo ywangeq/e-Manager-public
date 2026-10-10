@@ -25,8 +25,12 @@ export function createProviderConnectionGovernanceStore({ storePath, redactError
 
   function setRouteEnabled(routeId, enabled, actor = {}) {
     return updateState((state, audit) => {
-      state.routeOverrides[routeId] = { enabled, ...audit };
+      state.routeOverrides[routeId] = { ...state.routeOverrides[routeId], enabled, ...audit };
     }, actor);
+  }
+
+  function setRouteExecutionLimits(routeId, limits, actor = {}) {
+    return updateState((state, audit) => { state.routeOverrides[routeId] = { ...state.routeOverrides[routeId], ...limits, ...audit }; }, actor);
   }
 
   function setCredentialDepartment(credentialId, departmentId, actor = {}) {
@@ -53,7 +57,7 @@ export function createProviderConnectionGovernanceStore({ storePath, redactError
     }
   }
 
-  return { filePath, readState, setCredentialDepartment, setRouteEnabled };
+  return { filePath, readState, setCredentialDepartment, setRouteEnabled, setRouteExecutionLimits };
 }
 
 function emptyState() {

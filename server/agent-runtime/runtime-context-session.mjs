@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { MAX_RUNTIME_SAFE_ACTIVITIES } from "./runtime-safe-activity-contract-v1.mjs";
 import {
   TASK_OUTPUT_MANIFEST_CONTRACT,
   taskOutputManifestSummary,
@@ -185,6 +186,41 @@ async function assembleRuntimeConversationHistory({
     conversationHistory: history,
     summary: assemblySummary({ assembled, history, source: safeSource }),
   };
+}
+
+// Only server-verified canonical membership may supply this projection. Shared
+// session checkpoints cannot be read or overwritten by a restricted history.
+function selectRuntimeTaskHistory(source, projection) {
+  if (!projection) return source;
+  if (source?.authority !== "session_foundation" || projection.policy !== "exact_task_history" ||
+    projection.sessionId !== source.session?.sessionId || projection.routeDigest !== source.route?.routeDigest ||
+    !Array.isArray(projection.taskIds) || !projection.taskIds.length || projection.taskIds.length > 101 ||
+    !Array.isArray(projection.inputEntryIds) || projection.inputEntryIds.length !== projection.taskIds.length ||
+    [...projection.taskIds,...projection.inputEntryIds].some(id => typeof id !== "string" || !id)) {
+    throw runtimeContextError("context_task_projection_invalid");
+  }
+  const entries = source.transcriptEntries;
+  if (!Array.isArray(entries) || entries.length > 10000) throw runtimeContextError("context_task_history_capacity_exceeded");
+  const taskIds = new Set(projection.taskIds), inputs = new Set(projection.inputEntryIds);
+  const byKey = new Map(entries.map(entry => [entry.idempotencyKey,entry]));
+  const keep = new Set();
+  const pair = (taskId, suffix) => {
+    const call = byKey.get(idempotencyKey(taskId,`${suffix}:call`));
+    const result = byKey.get(idempotencyKey(taskId,`${suffix}:result`));
+    if (call?.type === "toolCall" && result?.type === "toolResult" && call.toolCall?.callId && call.toolCall?.toolId &&
+      call.toolCall.callId === result.toolResult?.callId && call.toolCall.toolId === result.toolResult?.toolId) {
+      keep.add(call); keep.add(result);
+    }
+  };
+  for (const taskId of taskIds) {
+    pair(taskId,"tool:task-output-manifest");
+    // Legacy evidence without a provable canonical key is deliberately omitted.
+    for (let index = 0; index < MAX_RUNTIME_SAFE_ACTIVITIES; index++) pair(taskId,`tool:${index}`);
+  }
+  return {...source,checkpoint:null,checkpointRepository:null,transcriptEntries:entries.filter(entry =>
+    entry.sessionId === projection.sessionId && (keep.has(entry) ||
+      (entry.type === "message" && (entry.message?.role === "user" ? inputs.has(entry.entryId) :
+        entry.message?.role === "assistant" && taskIds.has(entry.message.taskId))))) };
 }
 
 function checkpointFailureReason(error) {
@@ -525,6 +561,7 @@ function projectRuntimeSessionWorkflowEvidence(
     if (entry?.type !== "toolResult") continue;
     const summary = parseSafeToolSummary(entry.toolResult?.safeSummary);
     if (summary?.contractVersion === TOOL_PARAMETER_CONTINUATION_EVIDENCE_CONTRACT) {
+      if (summary.requestKind === "clarification") continue;
       if (isExpiredToolParameterContinuationEvidence(summary, entry.createdAt, nowMs, ttlMs)) {
         selectionContinuation = null;
         selectionCreatedAt = "";
@@ -559,7 +596,7 @@ function projectRuntimeSessionWorkflowEvidence(
 }
 
 function isExpiredToolParameterContinuationEvidence(summary = {}, createdAt = "", nowMs = Date.now(), ttlMs = DEFAULT_WORKFLOW_EVIDENCE_TTL_MS) {
-  if (summary?.contractVersion !== TOOL_PARAMETER_CONTINUATION_EVIDENCE_CONTRACT) return false;
+  if (summary?.contractVersion !== TOOL_PARAMETER_CONTINUATION_EVIDENCE_CONTRACT || summary.requestKind === "clarification") return false;
   const createdAtMs = Date.parse(String(createdAt || ""));
   if (!Number.isFinite(createdAtMs)) return true;
   return nowMs - createdAtMs >= ttlMs;
@@ -660,6 +697,7 @@ function normalizeToolParameterContinuationEvidence(value = {}) {
     contractVersion: TOOL_PARAMETER_CONTINUATION_EVIDENCE_CONTRACT,
     toolId: requiredText(value.toolId, "toolId"),
     operationId: requiredText(value.operationId, "operationId"),
+    ...(["business_fields", "clarification"].includes(value.requestKind) ? { requestKind: value.requestKind } : {}),
     ...(inputSource ? { inputSource } : {}),
     arguments: argumentsValue,
     ...(normalizeContinuationSelectionEvidence(value.selectionEvidence)
@@ -771,6 +809,7 @@ export {
   assertRuntimeConversationContext,
   createSessionTurnQueue,
   prepareRuntimeContextSource,
+  selectRuntimeTaskHistory,
   projectContextItemsToMessages,
   projectRuntimeSessionWorkflowEvidence,
   readRuntimeContextCompactionPolicyFromEnvironment,

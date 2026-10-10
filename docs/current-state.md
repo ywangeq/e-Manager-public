@@ -1,4 +1,4 @@
-# Local installation — public release 1.0
+# Local installation — public release 1.1
 
 This checkout is an independent source snapshot with fresh publication history. It does not share a Git worktree, application identity, data directory or service port with the upstream development repository. Platform source and prebuilt packages are distributed separately from user-owned business assets.
 
@@ -40,7 +40,7 @@ Center and Desktop frontend builds passed. Six focused tests verify hashed passw
 
 The Center ZIP was extracted to another directory, independently installed from the lockfile, started on a separate loopback port and verified through real password login and an empty employee catalog. It contains required shared Desktop contract modules, not an entire Desktop application. Group Studio ignores the upstream DIGITAL_WORKFORCE_SERVER_URL environment variable and uses only its own loopback configuration and application data directory. Packages exclude installation data and credentials. An original text-summary Skill example is supplied separately; archive intake and its identity were verified, not the full review/model execution workflow.
 
-Group delivery review requires a governed reviewer Skill; select its stable ID explicitly with `EMANAGER_REVIEWER_SKILL_ID` when starting Center. An absent selection does not invent a reviewer or make an unreviewed asset runnable. Release 1.0 uses Group Studio internal version 3.0.0-beta.32; the release number denotes this public distribution, not a Desktop 2.x build.
+Group delivery review requires a governed reviewer Skill; select its stable ID explicitly with `EMANAGER_REVIEWER_SKILL_ID` when starting Center. An absent selection does not invent a reviewer or make an unreviewed asset runnable. Release 1.1 uses Group Studio internal version 3.0.0-beta.69; the release number denotes this public distribution, not a Desktop 2.x build.
 
 Skill 归档导入还需要 PATH 中有 `python3`、`unzip` 和 `tar`；Python Harness 需另行准备对应执行依赖。
 
@@ -49,3 +49,11 @@ Public release-to-beta mappings and immutable attachment digests are recorded in
 ## Model credentials
 
 The distribution does not include a model API key or shared inference quota. Users must supply their own model service URL, model name and API key before running AI tasks. Center startup and local login do not require a model key. Configure credentials locally; never commit them or paste them into public Issues. Usage is billed by the selected model service.
+
+## 1.1 update boundary
+
+This release synchronizes committed platform changes only. It adds Device Read transport and authorization boundaries, durable task continuations and confirmation delivery recovery, calendar/automation views, personal task display and operations monitoring refinements. Public local authentication, empty catalogs (including empty builtin Tool migrations), loopback Center configuration, application identity, data isolation and disabled automatic updates remain authoritative. Internal employee/Skill/character data and catalog-dependent internal tests are excluded. The local calendar Runtime bundle is generated from this sanitized source rather than copied from development builds.
+
+The Feishu read helper is built from the pinned official CLI archive and reviewed Go compiler; source, compiler, final executable digest and target architecture are verified. Packaging rechecks the sealed resources. It does not include CLI login state or credentials. For source packaging, run `pnpm --dir desktop-channel-mvp desktop:package`; official compiler/source downloads require network access. No network business read, live Feishu authorization or model execution is claimed as accepted. Local accounts are not company SSO identities; integrations which require verified company identity must be adapted under the existing authorization contracts, not bypassed.
+
+The 1.0 release and attachments remain available. Back up the whole local data directory before upgrading; preservation of account/encryption keys is tested, while migration of populated user business/task stores and a complete GUI upgrade remain pending user acceptance.

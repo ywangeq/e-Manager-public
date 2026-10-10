@@ -96,17 +96,21 @@ function createOpenApiToolExecutor({
   const referenceEvidence = new Map();
   const sideEffectFreeResultCache = new Map();
 
-  async function execute({ name = "", arguments: input = {}, callId = "" } = {}, {
+  async function execute(call = {}, options = {}) { return invoke(call, options, false); }
+  async function recoverRecordedResult(call = {}, options = {}) { return invoke(call, options, true); }
+
+  async function invoke({ name = "", arguments: input = {}, callId = "" } = {}, {
     onControlledRetry = null,
     confirmedToolCall = false,
     operationReceiptContext = null,
     runtimeTask = null,
     signal = null,
-  } = {}) {
+  } = {}, receiptReadOnly = false) {
     if (onControlledRetry !== null && typeof onControlledRetry !== "function") {
       throw new TypeError("OpenAPI Tool onControlledRetry must be a function");
     }
     if (signal?.aborted) return toolFailure(toolId, "agent_turn_canceled", "任务已取消，OpenAPI Tool 未开始执行。");
+    if (receiptReadOnly && name !== names.invoke) return toolFailure(toolId, "operation_receipt_recovery_unsupported", "该 Tool 不支持读取写操作回执。");
     if (name === names.search) return searchOperations(input);
     if (name === names.references && managedReferenceCatalog) return searchReferences(input);
     if (name === names.describe) return describeOperation(input);
@@ -147,6 +151,30 @@ function createOpenApiToolExecutor({
     }
     const argumentsResult = normalizeOpenApiArguments(operation, managedArguments.arguments, { materialInputIds });
     if (!argumentsResult.ok) return toolFailure(toolId, "tool_arguments_invalid", argumentsResult.message);
+    if (receiptReadOnly) {
+      if (operation.risk === "read_only" || typeof idempotentEffectService?.readRecordedResult !== "function" ||
+        !operationReceiptProjector || !cleanText(callId, 180)) {
+        return toolFailure(toolId, "operation_receipt_recovery_unsupported", "当前操作缺少只读回执恢复能力。");
+      }
+      const context = receiptContextFor(operationReceiptContext, runtimeTask);
+      if (!context?.repositoryContext) return toolFailure(toolId, "operation_receipt_task_identity_required", "当前回执缺少可验证的任务身份。");
+      const recorded = await idempotentEffectService.readRecordedResult({
+        request: receiptRequestFor(operation, argumentsResult.value, callId, context),
+      });
+      if (!recorded || ["prepared", "unknown"].includes(recorded.status)) {
+        return toolFailure(toolId, "external_effect_unknown", "尚无确定的执行回执，已停止重放。");
+      }
+      const result = recorded.receipt.payload?.toolResult;
+      if (!result || result.toolId !== toolId || result.operationId !== operation.operationId) {
+        return toolFailure(toolId, "operation_receipt_result_unavailable", "回执结果不能与当前 Tool 合同匹配。");
+      }
+      const restored = boundedResult(structuredClone(result), toolId);
+      if (recorded.status === "definitive_failed") return { ...restored, externalEffectStatus: "definitive_failed", turnDisposition: "target_rejected" };
+      return restored.ok && operation.asyncResult ? {
+        ...restored, status: "in_progress", externalEffectStatus: "succeeded",
+        asyncResult: { contractVersion: operation.asyncResult.contractVersion, terminal: false, reason: "recorded_submission_only" },
+      } : { ...restored, externalEffectStatus: "succeeded" };
+    }
     if (typeof authorizeToolCall === "function") {
       const decision = await authorizeToolCall({
         ...governedOpenApiToolCall(operation, argumentsResult.value),
@@ -280,34 +308,12 @@ function createOpenApiToolExecutor({
       if (!cleanText(callId, 180)) {
         return toolFailure(toolId, "operation_receipt_call_id_required", "当前写操作缺少可验证的 Tool 调用身份。");
       }
-      const effectiveOperationReceiptContext = operationReceiptContext?.repositoryContext
-        ? operationReceiptContext
-        : defaultOperationReceiptContext?.repositoryContext
-          ? defaultOperationReceiptContext
-        : operationReceiptContextForExecutionOwnership({ task: runtimeTask, lease: runtimeTask?.lease });
+      const effectiveOperationReceiptContext = receiptContextFor(operationReceiptContext, runtimeTask);
       if (!effectiveOperationReceiptContext?.repositoryContext) {
         return toolFailure(toolId, "operation_receipt_task_identity_required", "当前写操作缺少可验证的任务回执身份。");
       }
       const authorizationDigest = cleanText(operation.writePolicyDigest, 80);
-      const receiptRequest = operationReceiptProjector.project({
-        tenantScope: effectiveOperationReceiptContext.repositoryContext.tenantScope,
-        taskId: effectiveOperationReceiptContext.repositoryContext.taskId,
-        toolCallId: cleanText(callId, 180),
-        effectKind: "external_write",
-        adapterId: toolId,
-        actionCode: operation.operationId,
-        authorizationDigest,
-        recoveryMode: "none",
-        targetScope: { origin: new URL(apiBaseUrl).origin, scope: operation.scope },
-        operation: {
-          arguments: argumentsResult.value,
-          contractDigest: operation.contractDigest,
-          method: operation.method,
-          operationId: operation.operationId,
-          path: operation.path,
-          writePolicyDigest: operation.writePolicyDigest,
-        },
-      });
+      const receiptRequest = receiptRequestFor(operation, argumentsResult.value, callId, effectiveOperationReceiptContext);
       const receiptResult = await idempotentEffectService.execute({
         request: receiptRequest,
         repositoryContext: effectiveOperationReceiptContext.repositoryContext,
@@ -354,6 +360,22 @@ function createOpenApiToolExecutor({
       if (isResponseLimitError(error)) return responseLimitFailure(toolId);
       return toolFailure(toolId, "tool_unavailable", "OpenAPI 目标系统暂时不可达。");
     }
+  }
+
+  function receiptContextFor(context, runtimeTask) {
+    return context?.repositoryContext ? context : defaultOperationReceiptContext?.repositoryContext
+      ? defaultOperationReceiptContext : operationReceiptContextForExecutionOwnership({ task: runtimeTask, lease: runtimeTask?.lease });
+  }
+
+  function receiptRequestFor(operation, argumentsValue, callId, context) {
+    return operationReceiptProjector.project({
+      tenantScope: context.repositoryContext.tenantScope, taskId: context.repositoryContext.taskId,
+      toolCallId: cleanText(callId, 180), effectKind: "external_write", adapterId: toolId,
+      actionCode: operation.operationId, authorizationDigest: cleanText(operation.writePolicyDigest, 80), recoveryMode: "none",
+      targetScope: { origin: new URL(apiBaseUrl).origin, scope: operation.scope },
+      operation: { arguments: argumentsValue, contractDigest: operation.contractDigest, method: operation.method,
+        operationId: operation.operationId, path: operation.path, writePolicyDigest: operation.writePolicyDigest },
+    });
   }
 
   async function awaitDeclaredAsyncResult({ initialResult, operation, operationReceiptContext, signal }) {
@@ -643,6 +665,7 @@ function createOpenApiToolExecutor({
       }),
     }] : [],
     execute,
+    recoverRecordedResult,
     safeActivityDescriptor,
     operationForId: (operationId) => operationById.get(operationId) || null,
     operations: () => [...operations],

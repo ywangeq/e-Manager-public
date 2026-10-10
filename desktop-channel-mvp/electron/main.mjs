@@ -1,9 +1,17 @@
 import { localCenterUrl } from "../shared/local-center.mjs";
+import { registerLocalCalendarIpc } from "./local-calendar-ipc.mjs";
+import { createLocalCalendarService } from "./local-calendar-service.mjs";
+import { createFeishuCalendarCache } from "./feishu-calendar-cache.mjs";
+import { validFeishuCalendarUrl } from "../shared/feishu-calendar-read-contract.mjs";
+import { createFeishuCalendarProjection } from "./feishu-calendar-projection.mjs";
+import { createManagedFeishuReadAdapters } from "./managed-feishu-read-adapter.mjs";
+import { createDesktopConfirmationOutbox, CONFIRMATION_DELIVERY_MESSAGE } from "./desktop-confirmation-outbox.mjs";
+import { deliverToolConfirmation, readConfirmationDeliveryResponse } from "./desktop-confirmation-delivery.mjs";
 import { registerDesktopPersonalAutomationsIpc } from "./desktop-personal-automations.mjs";
 import { app, BrowserWindow, Menu, Tray, clipboard, dialog, ipcMain, nativeImage, net, powerMonitor, safeStorage, screen, session, shell } from "electron";
 import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,7 +85,11 @@ import {
   isSecureCredentialTransport,
 } from "./temporary-tool-token-store.mjs";
 import { createDataflowDeviceSessionCredentialBroker, dataflowCredentialPartition } from "./dataflow-device-session-broker.mjs";
+import { createDesktopFeishuAuthorization } from "./desktop-feishu-authorization.mjs";
 import { createDesktopSubsystemConnections, registerDesktopSubsystemConnectionsIpc } from "./desktop-subsystem-connections.mjs";
+import { createDesktopDeviceTools } from "./desktop-device-tools.mjs";
+import { createDesktopFeishuCliConnection } from "./desktop-feishu-cli-connection.mjs";
+import { createFeishuAssociationIntentStore } from "./feishu-association-intent-store.mjs";
 import { projectDataflowCredentialStatus, subsystemAuthenticationState } from "../shared/desktop-subsystem-connections.mjs";
 import {
   createDataflowCredentialChallengeClient,
@@ -121,6 +133,25 @@ let sessionRevalidationPromise = null;
 let releaseUpdateService = null;
 let releaseUpdateSignalClient = null;
 let desktopPresenceClient = null;
+let localCalendarService = null;
+let localCalendarLoading = null;
+let desktopDeviceTools = null;
+const deviceReadDiagnostics = [];
+let deviceDiagnosticWrite = Promise.resolve();
+let groupReadAssociationGeneration = null;
+const feishuCalendarCache = createFeishuCalendarCache({
+  directory: () => path.join(app.getPath("userData"), "calendar-display.v1"),
+  encryption: {...safeStorageEncryption(), isAvailable: () => safeStorage.isEncryptionAvailable() && safeStorage.getSelectedStorageBackend?.() !== "basic_text"},
+});
+const feishuCalendarProjection = createFeishuCalendarProjection({ persist: (value,snapshots) => {
+  const binding = feishuCliConnection.verifiedCacheBinding();
+  if (binding && GROUP_STUDIO && isExpectedDesktopActor(value.actorKey,value.actorVersion) &&
+    value.center === serverUrl && value.associationGeneration === feishuCliConnection.associationGeneration())
+    return feishuCalendarCache.write({...value,...binding},snapshots);
+  return false;
+}, notify: () => {
+  if (!mainWindow?.webContents?.isDestroyed()) mainWindow.webContents.send("desktop:calendar-changed");
+} });
 let releaseUpdateSettings = { channel: "", policy: null };
 let releaseUpdateChannel = "";
 let releaseUpdateState = { update: { status: "disabled" }, signal: { status: "disabled" } };
@@ -137,6 +168,8 @@ let serverConfigurationError = "";
 let allowMvpPrivateLanCredentialTransport = false;
 let conversationDisplayCache = null;
 let conversationHistoryBootstrap = null;
+let confirmationOutbox = null;
+let confirmationRecoveryPromise = null;
 let conversationHistorySafetyCeiling = null;
 let activeActorProjection = null;
 let activeActorContextVersion = 0;
@@ -167,10 +200,40 @@ const desktopSandboxDeviceSession = process.platform === "darwin"
   ? createDesktopSandboxDeviceSession()
   : null;
 const desktopEmployeeToolIds = new Map();
+const feishuCliConnection = createDesktopFeishuCliConnection({
+  onDisconnect: actor => feishuCalendarCache.removeActor({center:serverUrl,actorKey:actor.key}),
+  isExpectedActor: isExpectedDesktopActor,
+  actorContext: () => ({ key: activeActorKey, version: activeActorContextVersion }),
+  intentStore: GROUP_STUDIO ? createFeishuAssociationIntentStore({
+    filePath: () => path.join(app.getPath("userData"), "feishu-association-intent.v1.json"),
+    centerOrigin: () => serverUrl,
+  }) : null,
+  readActor: async ({ signal } = {}) => {
+    const key = activeActorKey, version = activeActorContextVersion;
+    if (!key) return null;
+    const response = await desktopFetch("/api/me", { signal, headers: { Accept: "application/json" } });
+    const data = await response.json();
+    if (!response.ok || data.ok !== true || !data.session || !isExpectedDesktopActor(key, version)) return null;
+    const actor = data.session;
+    const returnedKey = cleanMessage(actor.employeeId || actor.email || actor.feishuUserId || actor.employeeNo || "").toLowerCase();
+    if (returnedKey !== key) return null;
+    return { key, version, identitySource: actor.identitySource, email: actor.email,
+      feishuUserId: actor.feishuUserId, feishuUnionId: actor.feishuUnionId };
+  },
+});
+const feishuAuthorization = createDesktopFeishuAuthorization({
+  actorContext: () => ({ key: activeActorKey, version: activeActorContextVersion }),
+  isExpectedActor: isExpectedDesktopActor, connection: {
+    status: feishuCliConnection.status, check: feishuCliConnection.check,
+    connect: async (...args) => { await feishuCliConnection.connect(...args); notifySubsystemConnectionsChanged(); },
+  },
+  openExternal: url => shell.openExternal(url),
+});
 const subsystemConnections = createDesktopSubsystemConnections({
   actorContext: () => ({ key: activeActorKey, version: activeActorContextVersion }),
   isExpectedActor: isExpectedDesktopActor,
   notify: notifySubsystemConnectionsChanged,
+  personalConnectionIds: GROUP_STUDIO ? ["lark-cli-openapi"] : [],
   adapters: new Map([["dataflow-rest-api", {
     name: "DataFlow",
     icon: "database",
@@ -183,7 +246,7 @@ const subsystemConnections = createDesktopSubsystemConnections({
     check: (_id, options) => checkDataflowCredentialSession(options),
     connect: () => openDataflowCredentialLoginWindow(),
     disconnect: () => clearDataflowCredentialSession(),
-  }]]),
+  }], ["lark-cli-openapi", feishuCliConnection]]),
 });
 const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,159}$/;
 const desktopEmployeeMaterialContracts = new Map();
@@ -253,6 +316,10 @@ app.whenReady().then(async () => {
       });
     },
   });
+  confirmationOutbox = createDesktopConfirmationOutbox({
+    filePath:path.join(app.getPath("userData"),"confirmation-delivery.enc.v1.json"),
+    encryption:{...safeStorageEncryption(),isAvailable:() => safeStorage.isEncryptionAvailable() && safeStorage.getSelectedStorageBackend?.() !== "basic_text"},
+  });
   releaseUpdateChannel = releaseUpdateSettings.channel;
   serverUrl = endpoint.url;
   serverUrlSource = endpoint.source;
@@ -300,18 +367,22 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   createMainWindow();
   createTray();
+  if (GROUP_STUDIO) void ensureLocalCalendar().catch(() => {});
+  powerMonitor.on("suspend", () => { localCalendarService?.suspend(); void desktopDeviceTools?.stop(); });
+  powerMonitor.on("resume", () => { localCalendarService?.resume(); void desktopDeviceTools?.ensure().catch(() => {}); });
   installSessionRevalidationTriggers();
   setReleaseUpdateState({ signal: { status: "authentication_required" } });
 });
 
 app.on("before-quit", (event) => {
   windowSizePreferences?.flush();
-  if (!quitting && desktopPresenceClient) {
+  if (!quitting && (desktopPresenceClient || localCalendarService)) {
     event.preventDefault();
     quitting = true;
     const client = desktopPresenceClient;
     desktopPresenceClient = null;
-    void client.stop().finally(() => app.quit());
+    const local = localCalendarService; localCalendarService = null;
+    void Promise.allSettled([client?.stop(), local?.close(), desktopDeviceTools?.stop()]).finally(() => app.quit());
     return;
   }
   quitting = true;
@@ -520,6 +591,7 @@ function registerIpcHandlers() {
       expanded,
       platform: process.platform,
       appVersion: app.getVersion(),
+      displayVersion: products.displayVersion(PACKAGED_PRODUCT, app.getVersion()),
       updateChannel: releaseUpdateChannel,
       serverUrl,
       serverUrlSource,
@@ -716,13 +788,16 @@ function registerIpcHandlers() {
         ? normalizedHistoryBootstrap.bootstrap
         : null;
       if (!isExpectedDesktopActor(requestActor.key, requestActor.version)) return { ok: false, employees: [], error: "desktop_actor_changed" };
+      void recoverPendingConfirmations();
       const hydratedData = await hydrateDesktopBootstrapCharacters(data, {
         assetCache: desktopCharacterAssetCache,
+        includeAnimated: !GROUP_STUDIO,
         request: desktopFetch,
       });
       if (!isExpectedDesktopActor(requestActor.key, requestActor.version)) return { ok: false, employees: [], error: "desktop_actor_changed" };
       configureDataflowCredentialRuntime(data.credentialBrokerBootstrap);
       subsystemConnections.configure(hydratedData.employees || []);
+      if (GROUP_STUDIO) void subsystemConnections.checkAll().catch(() => {});
       desktopEmployeeToolIds.clear();
       desktopEmployeeMaterialContracts.clear();
       for (const employee of hydratedData.employees || []) {
@@ -751,6 +826,33 @@ function registerIpcHandlers() {
   });
 
   registerDesktopSubsystemConnectionsIpc({ ipcMain, assertSender: assertMainSender, service: subsystemConnections });
+  ipcMain.handle("desktop:calendar-snapshot", async (event, input) => {
+    assertMainSender(event);
+    if (!GROUP_STUDIO || input !== undefined || !activeActorKey) return { ok: false };
+    const before = calendarProjectionContext();
+    await restoreCalendarDisplay();
+    if (JSON.stringify(before) !== JSON.stringify(calendarProjectionContext())) return {ok:false};
+    return feishuCalendarProjection.read(before);
+  });
+  ipcMain.handle("desktop:calendar-open-link", async (event, input) => {
+    assertMainSender(event);
+    if (!GROUP_STUDIO || !activeActorKey || !input || Object.keys(input).sort().join() !== "eventRef,kind" ||
+      typeof input.eventRef !== "string" || !["calendarUrl","meetingUrl"].includes(input.kind)) return {ok:false};
+    const before = calendarProjectionContext();
+    await restoreCalendarDisplay();
+    if (JSON.stringify(before) !== JSON.stringify(calendarProjectionContext())) return {ok:false};
+    const value = feishuCalendarProjection.read(calendarProjectionContext()).snapshots.flatMap(snapshot => snapshot.events).find(item => item.eventRef === input.eventRef);
+    const url = value?.[input.kind];
+    if (!validFeishuCalendarUrl(url,input.kind)) return {ok:false};
+    await shell.openExternal(url); return {ok:true};
+  });
+  registerLocalCalendarIpc({ipcMain,assertSender:assertMainSender,
+    actorContext:()=>({key:activeActorKey,version:activeActorContextVersion}),isExpectedActor:isExpectedDesktopActor,
+    ensureService:()=>GROUP_STUDIO ? ensureLocalCalendar() : null});
+  ipcMain.handle("desktop:feishu-authorization", (event, input) => {
+    assertMainSender(event);
+    return GROUP_STUDIO ? feishuAuthorization.request(input) : { ok: false };
+  });
   registerDesktopPersonalAutomationsIpc({ipcMain,assertSender:assertMainSender,actorContext:() => ({key:activeActorKey,version:activeActorContextVersion}),isExpectedActor:isExpectedDesktopActor,desktopFetch});
   registerDesktopMyTasksIpc({
     actorContext: () => ({ key: activeActorKey, version: activeActorContextVersion }),
@@ -835,6 +937,19 @@ function registerIpcHandlers() {
       cards: Array.isArray(data?.cards) ? data.cards : [],
     };
   });
+
+  for (const [channel, employeeScoped] of [["desktop:get-pending-interactions",false],["desktop:get-employee-pending-interactions",true]]) {
+    ipcMain.handle(channel, async (event, employeeIdInput) => {
+      assertMainSender(event);
+      const actorKey = activeActorKey;
+      const employeeId = employeeScoped ? cleanEmployeeId(employeeIdInput) : "";
+      if (!actorKey || (employeeScoped && !employeeId)) return {ok:false,status:"authentication_required"};
+      const response = await desktopFetch(employeeScoped ? `/api/digital-employees/${encodeURIComponent(employeeId)}/pending-interactions` : "/api/me/pending-interactions",{headers:{Accept:"application/json"}});
+      const data = await response.json().catch(() => ({}));
+      if (actorKey !== activeActorKey) return {ok:false,status:"actor_changed"};
+      return {...data,ok:response.ok && data?.ok === true,status:response.ok ? "ready" : cleanMessage(data?.error || `http_${response.status}`)};
+    });
+  }
 
   ipcMain.handle("desktop:request-employee-access", async (event, input) => {
     assertMainSender(event);
@@ -960,16 +1075,31 @@ function registerIpcHandlers() {
     return clearDataflowCredentialSession();
   });
 
-  ipcMain.handle("desktop:send-assistant", async (event, input) => {
+  ipcMain.handle("desktop:send-assistant", sendDesktopAssistant);
+
+  ipcMain.handle("desktop:open-external", async (event, value) => {
+    assertMainSender(event);
+    const url = safeExternalUrl(value);
+    if (!url) throw new Error("external_url_rejected");
+    await shell.openExternal(url);
+    return { opened: true };
+  });
+}
+
+async function sendDesktopAssistant(event,input,{resumeDelivery=false}={}) {
     assertMainSender(event);
     const requestActorKey = activeActorKey;
     const requestActorContextVersion = activeActorContextVersion;
+    const requestCenterOrigin = new URL(serverUrl).origin;
+    const canContinueRequest = () => isExpectedDesktopActor(requestActorKey, requestActorContextVersion) &&
+      new URL(serverUrl).origin === requestCenterOrigin;
     const employeeId = cleanEmployeeId(input?.employeeId);
     const streamId = cleanMessage(input?.streamId || "").slice(0, 120);
     if (!employeeId) throw new Error("desktop_employee_required");
     const rawMessage = cleanMessage(input?.message || "").slice(0, 800);
     if (containsCredentialText(rawMessage)) throw new Error("desktop_credential_message_blocked");
-    const message = redactCredentialText(rawMessage);
+    const toolConfirmation = normalizeToolConfirmationInput(input?.toolConfirmation);
+    const message = toolConfirmation ? CONFIRMATION_DELIVERY_MESSAGE : redactCredentialText(rawMessage);
     if (!message) throw new Error("empty_message");
     const messages = Array.isArray(input?.messages)
       ? input.messages.slice(-8).flatMap((item) => {
@@ -1019,6 +1149,15 @@ function registerIpcHandlers() {
     let submittedTask = null;
     let taskFollowPromise = null;
     try {
+      await ensureLocalCalendar();
+      if (!canContinueRequest()) throw Error("desktop_assistant_actor_changed");
+      await desktopDeviceTools?.ensure();
+      if (!canContinueRequest()) throw Error("desktop_assistant_actor_changed");
+      if (toolConfirmation) {
+        await confirmationOutbox.remember({actorKey:requestActorKey,centerOrigin:requestCenterOrigin,employeeId,
+          sessionId:conversationHistoryBootstrap?.sessions?.[employeeId]?.sessionId,confirmationId:toolConfirmation.id});
+        if (!canContinueRequest()) throw Error("desktop_assistant_actor_changed");
+      }
       let desktopMaterial = materialGrant?.safeContext || null;
       if (materialGrant?.bridgeItems?.length) {
         const intakeResponse = await desktopFetch(`/api/digital-employees/${encodeURIComponent(employeeId)}/desktop-material-intakes`, {
@@ -1038,23 +1177,18 @@ function registerIpcHandlers() {
         desktopMaterial = { ...desktopMaterial, intakeId: intake.intakeId };
       }
       const toolCredentials = await toolCredentialsForEmployee(employeeId);
-      const toolConfirmation = normalizeToolConfirmationInput(input?.toolConfirmation);
       const toolParameterCard = normalizeToolParameterCardInput(input?.toolParameterCard);
-      const response = await desktopFetch(`/api/digital-employees/${encodeURIComponent(employeeId)}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, requestId, activeViewLabel: "桌面 Channel", channelId: "desktop", messages, desktopMaterial, deviceWorkspaceMaterial, reusableMaterialGrantId, toolCredentials, toolConfirmation, toolParameterCard }),
-        signal: chatController.signal,
-      });
-      if (materialGrantId) preparedMaterialGrants.delete(materialGrantId);
+      let response;
       const activityParser = createAssistantActivityStreamParser((activity) => {
-        if (!isExpectedDesktopActor(requestActorKey, requestActorContextVersion)) return;
+        if (!canContinueRequest()) return;
         if (!streamId || event.sender.isDestroyed()) return;
         event.sender.send("desktop:assistant-activity", { employeeId, streamId, activity });
       });
-      const taskParser = createAssistantTaskStreamParser((task) => {
-        if (!isExpectedDesktopActor(requestActorKey, requestActorContextVersion)) return;
+      const acceptSubmittedTask = (task) => {
+        if (!canContinueRequest()) return;
         submittedTask = { ...task, employeeId, streamId };
+        if (toolConfirmation) void confirmationOutbox.forget({actorKey:requestActorKey,centerOrigin:requestCenterOrigin,confirmationId:toolConfirmation.id}).catch(() => {});
+        if (resumeDelivery) {queueMicrotask(() => chatController.abort(Error("confirmation_delivery_received")));return;}
         taskFollowPromise ||= desktopTaskFollowService.follow({ employeeId, sender: event.sender, streamId, taskId: task.taskId, expectedActorContextVersion: requestActorContextVersion, expectedActorKey: requestActorKey });
         taskFollowPromise.catch(() => {});
         if (task.sessionId && conversationHistoryBootstrap) {
@@ -1071,9 +1205,10 @@ function registerIpcHandlers() {
         }
         if (!streamId || event.sender.isDestroyed()) return;
         event.sender.send("desktop:assistant-task", { employeeId, streamId, ...task });
-      });
+      };
+      const taskParser = createAssistantTaskStreamParser(acceptSubmittedTask);
       const sandboxBindingParser = createDesktopSandboxBindingStreamParser((binding) => {
-        if (!deviceWorkspaceMaterial || !isExpectedDesktopActor(requestActorKey, requestActorContextVersion)) return;
+        if (!deviceWorkspaceMaterial || !canContinueRequest()) return;
         if (binding.workspaceInputDigest !== deviceWorkspaceMaterial.workspaceInputDigest) return;
         try {
           const bound = desktopSandboxMainDispatch?.bindAuthorizedTaskInput({
@@ -1094,20 +1229,44 @@ function registerIpcHandlers() {
           // A missing/changed selection remains unbound; no local execution can start.
         }
       });
-      const rawBody = await readDesktopAssistantStream(response, {
-        push(chunk) {
-          activityParser.push(chunk);
-          taskParser.push(chunk);
-          sandboxBindingParser.push(chunk);
-        },
-        finish() {
-          activityParser.finish();
-          taskParser.finish();
-          sandboxBindingParser.finish();
-        },
+      const streamParsers = {
+        push(chunk) { activityParser.push(chunk); taskParser.push(chunk); sandboxBindingParser.push(chunk); },
+        finish() { activityParser.finish(); taskParser.finish(); sandboxBindingParser.finish(); },
+      };
+      const send = async () => {
+        if (!canContinueRequest()) throw Error("desktop_assistant_context_changed");
+        streamParsers.finish();
+        response = await desktopFetch(`/api/digital-employees/${encodeURIComponent(employeeId)}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...desktopDeviceTools?.headers() },
+          body: JSON.stringify({ message, requestId:toolConfirmation ? `tool-confirmation:${toolConfirmation.id}` : requestId, activeViewLabel: "桌面 Channel", channelId: "desktop", messages, desktopMaterial, deviceWorkspaceMaterial, reusableMaterialGrantId, toolCredentials, toolConfirmation, toolParameterCard }),
+        signal: chatController.signal,
       });
+        return toolConfirmation ? readConfirmationDeliveryResponse({ response,
+          read: () => readDesktopAssistantStream(response, streamParsers), hasTask: () => Boolean(submittedTask?.taskId),
+        }) : readDesktopAssistantStream(response, streamParsers);
+      };
+      const rawBody = toolConfirmation ? await deliverToolConfirmation({ send, signal: chatController.signal,lookupFirst:resumeDelivery,
+        canContinue: () => canContinueRequest(),
+        lookup: async () => {
+          const statusResponse = await desktopFetch(`/api/digital-employees/${encodeURIComponent(employeeId)}/tool-confirmations/${encodeURIComponent(toolConfirmation.id)}/submission`,
+            { headers: { Accept: "application/json" }, signal: chatController.signal });
+          if (!statusResponse.ok) throw Object.assign(Error("tool_confirmation_status_unavailable"), { terminal: [401, 403, 410].includes(statusResponse.status) });
+          const state = await statusResponse.json();
+          if (state?.ok !== true || state.contractVersion !== "tool-confirmation-submission.v1") throw Error("tool_confirmation_status_invalid");
+          return state;
+        },
+        recovered: state => {
+          response = { ok: true, status: 200 };
+          const recoveredBody = `event: meta\ndata: ${JSON.stringify({ employeeId, taskId: state.taskId, taskStatus: state.taskStatus })}\n\nevent: done\ndata: ${JSON.stringify({ ok: true, followTask: true })}\n\n`;
+          acceptSubmittedTask({ taskId: state.taskId, status: state.taskStatus });
+          return recoveredBody;
+        },
+      }) : await send();
+      if (toolConfirmation && [400,401,403,404,410,422].includes(response?.status)) await confirmationOutbox.forget({actorKey:requestActorKey,centerOrigin:requestCenterOrigin,confirmationId:toolConfirmation.id});
+      if (materialGrantId) preparedMaterialGrants.delete(materialGrantId);
       const body = stripDesktopSandboxBindingEvents(rawBody);
-      if (!isExpectedDesktopActor(requestActorKey, requestActorContextVersion)) {
+      if (!canContinueRequest()) {
         throw new Error("desktop_assistant_actor_changed");
       }
       const credentialEvents = credentialEventsFromSse(body);
@@ -1131,9 +1290,11 @@ function registerIpcHandlers() {
       }
       return { ok: response.ok, status: response.status, body, credentialEvents };
     } catch (error) {
+      if (toolConfirmation && error.terminal) await confirmationOutbox.forget({actorKey:requestActorKey,centerOrigin:requestCenterOrigin,confirmationId:toolConfirmation.id});
+      if (resumeDelivery && submittedTask?.taskId && canContinueRequest()) return {ok:true,taskId:submittedTask.taskId};
       if (materialGrant && preparedMaterialGrants.get(materialGrantId) === materialGrant) materialGrant.inFlight = false;
       if (submittedTask?.taskId) {
-        if (!isExpectedDesktopActor(requestActorKey, requestActorContextVersion)) throw error;
+        if (!canContinueRequest()) throw error;
         try {
           return await desktopTaskFollowService.follow({
             employeeId,
@@ -1153,15 +1314,29 @@ function registerIpcHandlers() {
       if (emptyDeviceWorkspaceSelectionRef) deviceWorkspaceSelections.delete(emptyDeviceWorkspaceSelectionRef);
       desktopAssistantRequestControllers.delete(chatController);
     }
-  });
+}
 
-  ipcMain.handle("desktop:open-external", async (event, value) => {
-    assertMainSender(event);
-    const url = safeExternalUrl(value);
-    if (!url) throw new Error("external_url_rejected");
-    await shell.openExternal(url);
-    return { opened: true };
-  });
+async function recoverPendingConfirmations() {
+  if (confirmationRecoveryPromise || !confirmationOutbox || !activeActorKey || !conversationHistoryBootstrap ||
+    !mainWindow || mainWindow.isDestroyed()) return confirmationRecoveryPromise;
+  const actorKey = activeActorKey, version = activeActorContextVersion, centerOrigin = new URL(serverUrl).origin;
+  confirmationRecoveryPromise = (async () => {
+    const records = await confirmationOutbox.pending({actorKey,centerOrigin});
+    for (const record of records) {
+      if (!isExpectedDesktopActor(actorKey,version) || new URL(serverUrl).origin !== centerOrigin) return;
+      const currentSession = conversationHistoryBootstrap?.sessions?.[record.employeeId]?.sessionId;
+      if (!currentSession) continue;
+      if (currentSession !== record.sessionId) {
+        await confirmationOutbox.forget({actorKey,centerOrigin,confirmationId:record.confirmationId});continue;
+      }
+      try {
+        await sendDesktopAssistant({sender:mainWindow.webContents},{employeeId:record.employeeId,
+          message:CONFIRMATION_DELIVERY_MESSAGE,toolConfirmation:{contractVersion:"tool-call-confirmation.v1",id:record.confirmationId,decision:"approved"}},
+          {resumeDelivery:true});
+      } catch { /* Keep unresolved intent for the next existing authenticated revalidation. */ }
+    }
+  })().catch(() => {}).finally(() => {confirmationRecoveryPromise=null;});
+  return confirmationRecoveryPromise;
 }
 
 async function readDesktopAssistantStream(response, activityParser) {
@@ -1227,6 +1402,7 @@ async function revalidateDesktopSession(trigger) {
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.ok === true) {
         setActiveActorKey(data.session?.employeeId || data.session?.email || data.session?.feishuUserId || data.session?.employeeNo || activeActorKey);
+        void recoverPendingConfirmations();
         if (releaseUpdateState.signal.status === "authentication_required") void restartReleaseUpdateSignalClient();
         notifyDesktopSystemStatusChanged();
         return { ok: true, status: data.status || "revalidated", trigger };
@@ -1255,6 +1431,9 @@ async function revalidateDesktopSession(trigger) {
 }
 
 async function logoutDesktopSession() {
+  await desktopDeviceTools?.stop();
+  localCalendarService?.invalidate();
+  feishuCalendarProjection.setContext(null);
   const presence = desktopPresenceClient;
   desktopPresenceClient = null;
   await presence?.stop();
@@ -1280,7 +1459,7 @@ async function logoutDesktopSession() {
   conversationHistoryBootstrap = null;
   activeActorProjection = null;
   setActiveActorKey("");
-  desktopSandboxDeviceSession.rotate();
+  desktopSandboxDeviceSession?.rotate();
   desktopEmployeeToolIds.clear();
   desktopEmployeeMaterialContracts.clear();
   loginWindow?.close();
@@ -1291,11 +1470,17 @@ async function logoutDesktopSession() {
 function setActiveActorKey(value = "", { clearDataflowPartition = true } = {}) {
   const next = cleanMessage(value).toLowerCase();
   if (activeActorKey && activeActorKey !== next) {
+    void confirmationOutbox?.clearActor(activeActorKey).catch(() => {});
     clearDesktopMaterialState();
     void clearConversationHistoryActor(activeActorKey);
   }
   const changed = activeActorKey !== next;
-  if (changed) subsystemConnections.clear();
+  if (changed) {
+    void desktopDeviceTools?.stop();
+    localCalendarService?.invalidate();
+    feishuCalendarProjection.setContext(null);
+    subsystemConnections.clear(); feishuCliConnection.clear(); feishuAuthorization.clear();
+  }
   if (changed || (clearDataflowPartition && !next)) disposeDataflowCredentialRuntime({
     clearPartition: clearDataflowPartition && (!next || next !== retiredDataflowSessionCleanup?.actorKey),
   });
@@ -1315,6 +1500,7 @@ function setActiveActorKey(value = "", { clearDataflowPartition = true } = {}) {
   }
   ensureReleaseUpdateService();
   if (changed) void restartReleaseUpdateSignalClient();
+  if (changed) void ensureLocalCalendar().then(() => desktopDeviceTools?.ensure()).catch(() => {});
 }
 
 function ensureReleaseUpdateService() {
@@ -1955,7 +2141,84 @@ async function checkDataflowCredentialSession({ signal } = {}) {
 }
 
 function notifySubsystemConnectionsChanged() {
+  if (groupReadAssociationGeneration !== feishuCliConnection.associationGeneration()) feishuCalendarProjection.setContext(null);
+  void ensureLocalCalendar().then(service => {
+    if (groupReadAssociationGeneration !== feishuCliConnection.associationGeneration()) {
+      void desktopDeviceTools?.stop().then(() => desktopDeviceTools?.ensure()).catch(() => {});
+      service?.invalidate(); groupReadAssociationGeneration = feishuCliConnection.associationGeneration();
+    }
+  }).catch(() => {});
   if (!mainWindow?.webContents?.isDestroyed()) mainWindow.webContents.send("desktop:subsystem-connections-changed");
+}
+
+async function ensureLocalCalendar() {
+  if (!GROUP_STUDIO || quitting) return null;
+  if (localCalendarService) return localCalendarService;
+  if (localCalendarLoading) return localCalendarLoading;
+  localCalendarLoading = (async () => {
+    const { createLocalReadTaskHost, digitalEmployees } = await import("./local-calendar-runtime.bundle.mjs");
+    if (quitting) return null;
+    const adapters = createManagedFeishuReadAdapters({ resourcesPath: process.resourcesPath, connection: feishuCliConnection });
+    const adapter = adapters[0] || null;
+    const service = createLocalCalendarService({
+      databasePath: path.join(app.getPath("userData"), "local-calendar-rules.v1.sqlite"),
+      createHost: createLocalReadTaskHost, employee: digitalEmployees.find(item => item.id === "personal-work-assistant"),
+      adapter, connection: feishuCliConnection, context: calendarProjectionContext, projection: feishuCalendarProjection,
+      notify: () => { if (!mainWindow?.webContents?.isDestroyed()) mainWindow.webContents.send("desktop:calendar-changed"); },
+    });
+    localCalendarService = service;
+    if (adapter && !desktopDeviceTools) desktopDeviceTools = createDesktopDeviceTools({
+      context: calendarProjectionContext,
+      available: async () => {
+        if (quitting || !activeActorKey || !isManagedHttpsCenterOrigin(serverUrl)) return false;
+        // Restore an existing association and refresh its short-lived identity
+        // proof before deciding whether this Device can expose its Tool.
+        await feishuCliConnection.check();
+        return (await feishuCliConnection.status()).state === "authenticated";
+      },
+      createAdapters: () => adapters, request: desktopFetch,
+      onDiagnostic: recordDeviceReadDiagnostic,
+      onCompleted: (context, value) => { feishuCalendarProjection.setContext(context); feishuCalendarProjection.accept(context, value); },
+      onFailed: (context, claim) => { feishuCalendarProjection.setContext(context); feishuCalendarProjection.failed(context, claim); },
+    });
+    service.start(); return service;
+  })().finally(() => { localCalendarLoading = null; });
+  return localCalendarLoading;
+}
+
+// Bounded local operational evidence only: no identity, arguments, results,
+// vendor messages or task references enter this file.
+function recordDeviceReadDiagnostic({ stage, code = "" } = {}) {
+  const stages = ["execution_started", "authority", "pre_identity", "helper", "post_identity", "identity_completed",
+    "execution_failed", "execution_finished", "result_started", "result_finished", "transport_failed"];
+  const codes = ["", "allowed", "blocked", "transport_failed", "completed", "failed", "canceled",
+    "device_read_canceled", "device_read_failed", "device_read_authority_unavailable", "device_read_authority_changed",
+    "device_read_claim_expired", "feishu_read_identity_unavailable", "feishu_read_unavailable", "feishu_read_helper_integrity_invalid"];
+  if (!stages.includes(stage) || !codes.includes(code)) return;
+  deviceReadDiagnostics.push({ at: new Date().toISOString(), stage, code });
+  if (deviceReadDiagnostics.length > 32) deviceReadDiagnostics.shift();
+  const snapshot = JSON.stringify({ schemaVersion: 1, events: deviceReadDiagnostics });
+  deviceDiagnosticWrite = deviceDiagnosticWrite.then(() => writeFile(path.join(app.getPath("userData"), "device-read-diagnostics.v1.json"), snapshot, { mode: 0o600 })).catch(() => {});
+}
+
+async function restoreCalendarDisplay() {
+  const before = calendarProjectionContext();
+  const binding = await feishuCliConnection.cacheBinding();
+  if (before.actorKey !== activeActorKey || before.actorVersion !== activeActorContextVersion || before.center !== serverUrl) return;
+  if (!binding) {
+    if (before.associationGeneration === feishuCliConnection.associationGeneration()) feishuCalendarProjection.setContext(null);
+    return;
+  }
+  if (binding.generation !== feishuCliConnection.associationGeneration()) return;
+  const current = calendarProjectionContext();
+  feishuCalendarProjection.setContext(current);
+  const saved = feishuCalendarCache.read({...current,...binding});
+  if (saved) feishuCalendarProjection.restore(current,saved);
+}
+
+function calendarProjectionContext() {
+  return { actorKey: activeActorKey, actorVersion: activeActorContextVersion, center: serverUrl,
+    associationGeneration: feishuCliConnection.associationGeneration() };
 }
 
 function desktopToolIsAvailable(toolId = "") {

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { DEFAULT_PROVIDER_TIMEOUT_POLICY, normalizeProviderTimeoutPolicy } from "./provider-timeout-policy.mjs";
-import { acceptedConfirmationMatches, confirmationRetentionDeadline } from "./tool-call-confirmation-acceptance.mjs";
+import { acceptedConfirmationMatches, confirmationRetentionDeadline, normalizeConfirmationInputSnapshot } from "./tool-call-confirmation-acceptance.mjs";
 
 const CONTRACT_VERSION = "tool-call-confirmation.v1";
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
@@ -67,6 +67,17 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
     if (!record || confirmationRetentionDeadline(record) <= now() || record.contextBinding !== contextBinding
       || (record.acceptance && !acceptedExecutionValid(record, confirmation, context))) return null;
     return { ...structuredClone(record.toolCall), callId: `confirmation:${requestedId}` };
+  }
+
+  // Private execution context: never expose this reference in the public card.
+  function approvedSourceTaskId({ confirmation, context } = {}) {
+    const contextBinding = confirmationContextBinding(context);
+    if (confirmation?.contractVersion !== CONTRACT_VERSION || confirmation?.decision !== "approved" ||
+      !cleanId(confirmation.id) || !contextBinding) return "";
+    const record = repository?.get ? repository.get(confirmation.id) : pending.get(confirmation.id);
+    if (!record || record.contextBinding !== contextBinding || confirmationRetentionDeadline(record) <= now() ||
+      (context.taskId && record.acceptance && !acceptedExecutionValid(record, confirmation, context))) return "";
+    return cleanId(record.sourceTaskId);
   }
 
   function issueRequest({ contextBinding, normalized, sourceTaskId = "" }) {
@@ -148,7 +159,9 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
     return records.filter(record => !record.acceptance && record.expiresAtMs > now() && record.contextBinding === contextBinding && (!context.taskId || record.sourceTaskId === context.taskId)).map(publicRequest);
   }
 
-  function acceptApproval({ confirmation, context, requestId, providerTimeoutPolicy = DEFAULT_PROVIDER_TIMEOUT_POLICY } = {}) {
+  function acceptApproval({ confirmation, context, requestId, inputSnapshot = null, providerTimeoutPolicy = DEFAULT_PROVIDER_TIMEOUT_POLICY } = {}) {
+    const snapshot = inputSnapshot === null ? null : normalizeConfirmationInputSnapshot(inputSnapshot);
+    if (inputSnapshot !== null && !snapshot) return null;
     const contextBinding = confirmationContextBinding(context);
     if (confirmation?.contractVersion !== CONTRACT_VERSION || confirmation?.decision !== "approved" || !cleanId(confirmation.id)
       || !contextBinding || !cleanText(requestId, 500)) return null;
@@ -156,7 +169,7 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
     const acceptedAtMs = now();
     const executeBeforeMs = acceptedAtMs + normalizeProviderTimeoutPolicy(providerTimeoutPolicy).taskExecutionTotalMs;
     let record;
-    if (repository?.accept) record = repository.accept({ id: confirmation.id, contextBinding, requestBinding, acceptedAtMs, executeBeforeMs });
+    if (repository?.accept) record = repository.accept({ id: confirmation.id, contextBinding, requestBinding, acceptedAtMs, executeBeforeMs, inputSnapshot: snapshot });
     else {
       record = pending.get(confirmation.id);
       if (!record || record.contextBinding !== contextBinding || confirmationRetentionDeadline(record) <= acceptedAtMs) return null;
@@ -164,12 +177,33 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
         if (record.acceptance.requestBinding !== requestBinding) return null;
       } else {
         if (record.expiresAtMs <= acceptedAtMs || record.executionInputBinding) return null;
-        record.acceptance = { requestBinding, acceptedAtMs, executeBeforeMs };
+        record.acceptance = { requestBinding, acceptedAtMs, executeBeforeMs, ...(snapshot ? { inputSnapshot: snapshot } : {}) };
         record.expiresAtMs = 0;
       }
     }
     return record ? { contractVersion: "tool-confirmation-admission.v1", id: record.id, status: "accepted",
       acceptedAt: new Date(record.acceptance.acceptedAtMs).toISOString(), executeBefore: new Date(record.acceptance.executeBeforeMs).toISOString() } : null;
+  }
+
+  function acceptedInputSnapshot({ confirmation, context, requestId } = {}) {
+    const contextBinding = confirmationContextBinding(context);
+    if (!contextBinding || confirmation?.contractVersion !== CONTRACT_VERSION || confirmation?.decision !== "approved" ||
+      !cleanId(confirmation.id) || !cleanText(requestId, 500)) return null;
+    const record = repository?.get ? repository.get(confirmation.id) : pending.get(confirmation.id);
+    if (!record?.acceptance || record.contextBinding !== contextBinding || confirmationRetentionDeadline(record) <= now() ||
+      record.acceptance.requestBinding !== digestValue(`${contextBinding}:${requestId}`)) return null;
+    return { snapshot: normalizeConfirmationInputSnapshot(record.acceptance.inputSnapshot) };
+  }
+
+  function admissionStatus({ confirmation, context, requestId } = {}) {
+    const contextBinding = confirmationContextBinding(context);
+    if (!contextBinding || !cleanId(confirmation?.id) || !cleanText(requestId, 500)) return null;
+    const record = repository?.get ? repository.get(confirmation.id) : pending.get(confirmation.id);
+    if (!record || record.contextBinding !== contextBinding || confirmationRetentionDeadline(record) <= now()) return null;
+    if (!record.acceptance) return { status: "pending" };
+    if (record.acceptance.requestBinding !== digestValue(`${contextBinding}:${requestId}`)) return null;
+    return { status: "accepted", acceptedAt: new Date(record.acceptance.acceptedAtMs).toISOString(),
+      executeBefore: new Date(record.acceptance.executeBeforeMs).toISOString() };
   }
 
   function bindApprovalToExecutionInput({ confirmation, context, executionInputId, requestId = "" } = {}) {
@@ -187,15 +221,18 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
     return true;
   }
 
-  function bindApprovalToTask({ confirmation, context, executionInputId, taskId } = {}) {
+  function bindApprovalToTask({ confirmation, context, executionInputId, taskId, inputDigest = "" } = {}) {
     const contextBinding = confirmationContextBinding(context);
     if (!contextBinding || !cleanText(executionInputId, 500) || !cleanId(taskId) || !cleanId(confirmation?.id)) return false;
     const executionInputBinding = digestValue(`${contextBinding}:${executionInputId}`);
-    if (repository?.bindExecutionTask) return repository.bindExecutionTask({ id: confirmation.id, contextBinding, executionInputBinding, taskId });
+    if (repository?.bindExecutionTask) return repository.bindExecutionTask({ id: confirmation.id, contextBinding, executionInputBinding, taskId, inputDigest });
     const record = pending.get(confirmation.id);
     if (!record?.acceptance || record.contextBinding !== contextBinding || record.executionInputBinding !== executionInputBinding
-      || confirmationRetentionDeadline(record) <= now() || (record.acceptance.taskId && record.acceptance.taskId !== taskId)) return false;
+      || confirmationRetentionDeadline(record) <= now() || (record.acceptance.taskId && record.acceptance.taskId !== taskId)
+      || (record.acceptance.inputSnapshot && !/^[a-f0-9]{64}$/.test(inputDigest))
+      || (record.acceptance.inputDigest && record.acceptance.inputDigest !== inputDigest)) return false;
     record.acceptance.taskId = taskId;
+    if (inputDigest) record.acceptance.inputDigest = inputDigest;
     return true;
   }
 
@@ -203,7 +240,7 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
     return confirmationRetentionDeadline(record) > now()
       && acceptedConfirmationMatches(record, { contextBinding: confirmationContextBinding(context), executionInputBinding: confirmation?.executionInputBinding, taskId: context.taskId })
       && typeof verifyAcceptedExecution === "function"
-      && verifyAcceptedExecution({ context, executionInputBinding: record.executionInputBinding, executeBeforeMs: record.acceptance.executeBeforeMs }) === true;
+      && verifyAcceptedExecution({ context, executionInputBinding: record.executionInputBinding, inputDigest: record.acceptance.inputDigest, executeBeforeMs: record.acceptance.executeBeforeMs }) === true;
   }
 
   function approvalForExecutionInput({ context, executionInputId } = {}) {
@@ -218,7 +255,7 @@ function createToolCallConfirmationService({ now = () => Date.now(), repository 
     return record?.acceptance && !acceptedExecutionValid(record, confirmation, context) ? null : confirmation;
   }
 
-  return { acceptApproval, approvalForExecutionInput, approvedToolCall, authorizeOrRequest, bindApprovalToExecutionInput, bindApprovalToTask, pendingRequests };
+  return { acceptApproval, acceptedInputSnapshot, admissionStatus, approvalForExecutionInput, approvedSourceTaskId, approvedToolCall, authorizeOrRequest, bindApprovalToExecutionInput, bindApprovalToTask, pendingRequests };
 
   function normalizedCall(toolCall = {}) {
     const name = cleanId(toolCall.name);

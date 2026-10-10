@@ -81,3 +81,37 @@ pub fn no_egress_workspace_policy(policy: &WorkspacePolicy) -> Result<String, &'
     result.push_str("(deny network*)\n");
     Ok(result)
 }
+
+// Versioned interactive exec: system runtime plus one workspace, with independent
+// outbound IP access. No host home, arbitrary Unix sockets, Keychain or env secrets.
+#[cfg(target_os = "macos")]
+pub fn isolated_exec_policy(policy: &WorkspacePolicy, network_access: bool) -> Result<String, &'static str> {
+    let workspace = seatbelt_quoted(&canonical_workspace(&policy.workspace_root)?)?;
+    // Keep OS boot/runtime support, excluding broad host configuration/db reads
+    // and inherited extension grants. The old v1 template remains byte-for-byte.
+    let mut defaults = PLATFORM_DEFAULTS.to_string();
+    for clause in [
+        "  (subpath \"/Library/Preferences\")\n",
+        "  (subpath \"/var/db\")\n",
+        "  (subpath \"/private/var/db\")",
+        "  (literal \"/private/etc/master.passwd\")\n",
+        "(allow file-read* (subpath \"/etc\"))\n",
+        "(allow file-read* (subpath \"/private/etc\"))\n",
+        "(allow file-read* (subpath \"/Library/Preferences\"))\n",
+        "(allow file-read* (extension \"com.apple.app-sandbox.read\"))\n",
+        "(allow file-read* file-write* (extension \"com.apple.app-sandbox.read-write\"))\n",
+    ] { defaults = defaults.replace(clause, ""); }
+    let mut result = format!("{BASE_POLICY}\n{defaults}\n");
+    result.push_str("(allow file-read* file-map-executable (subpath \"/System\") (subpath \"/usr/bin\") (subpath \"/usr/sbin\") (subpath \"/usr/lib\") (subpath \"/usr/libexec\") (subpath \"/usr/share\") (subpath \"/bin\") (subpath \"/sbin\") (subpath \"/Library/Apple\"))\n");
+    result.push_str("(allow file-read-metadata (literal \"/\") (literal \"/private\") (literal \"/private/var\") (literal \"/private/var/folders\"))\n");
+    result.push_str("(allow file-read* (literal \"/dev/null\") (literal \"/dev/random\") (literal \"/dev/urandom\") (literal \"/private/etc/localtime\") (literal \"/private/etc/hosts\") (literal \"/private/etc/resolv.conf\") (literal \"/private/etc/services\") (literal \"/private/etc/ssl/openssl.cnf\") (literal \"/private/etc/ssl/cert.pem\") (subpath \"/private/var/db/timezone\"))\n");
+    result.push_str(&format!("(allow file-read* file-map-executable (subpath {workspace}))\n(allow file-write* (subpath {workspace}))\n"));
+    for name in PROTECTED_ROOT_NAMES {
+        let protected = seatbelt_quoted(&policy.workspace_root.join(name))?;
+        result.push_str(&format!("(deny file-write* (subpath {protected}))\n"));
+    }
+    if network_access {
+        result.push_str("(allow network-outbound (remote ip))\n(allow network-bind (local ip \"*:*\"))\n(allow system-socket (socket-domain AF_UNIX))\n(allow network-outbound (literal \"/private/var/run/mDNSResponder\"))\n(allow network-outbound (remote unix-socket (path \"/var/run/mDNSResponder\")))\n(allow mach-lookup (global-name \"com.apple.SystemConfiguration.configd\") (global-name \"com.apple.networkd\") (global-name \"com.apple.SystemConfiguration.DNSConfiguration\"))\n(allow system-socket (require-all (socket-domain AF_SYSTEM) (socket-protocol 2)))\n");
+    } else { result.push_str("(deny network*)\n"); }
+    Ok(result)
+}

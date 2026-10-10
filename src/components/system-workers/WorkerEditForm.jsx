@@ -215,12 +215,13 @@ export default function WorkerEditForm({
           </select>
         </label>
         <label>
-          <span>执行超时</span>
-          <select aria-label="执行超时" value={draft.taskExecutionTimeoutMinutes || 60} onChange={(event) => onDraftChange({ taskExecutionTimeoutMinutes: Number(event.target.value) })}>
+          <span>Worker 执行预算声明</span>
+          <select aria-label="Worker 执行预算声明" value={draft.taskExecutionTimeoutMinutes || 60} onChange={(event) => onDraftChange({ taskExecutionTimeoutMinutes: Number(event.target.value) })}>
             {executionMinuteOptions.map((value) => (
               <option key={value} value={value}>{value} 分钟</option>
             ))}
           </select>
+          <small>实际模型、Tool 调用时限及任务总预算在“模型供应商与连接”配置。</small>
         </label>
         {canEditGlobalConfig ? (
           <>

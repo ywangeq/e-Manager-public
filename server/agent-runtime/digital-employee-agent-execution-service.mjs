@@ -1,4 +1,5 @@
 import { normalizeAgentExecutionBudget } from "./agent-execution-budget.mjs";
+import crypto from "node:crypto";
 import { normalizedOutputFormat } from "./agent-output-format.mjs";
 import { buildDigitalEmployeeAgentPrompt } from "./digital-employee-agent-prompt.mjs";
 import { normalizeAgentCompletionContract } from "./agent-completion-contract.mjs";
@@ -105,6 +106,11 @@ function createDigitalEmployeeAgentExecutionService({ agentRunner, recordRuntime
     onTextDelta = null,
     onToolActivity = null,
     operationReceiptContext = null,
+    executionContinuation = null,
+    onExecutionContinuation = null,
+    recoveredPrompt = null,
+    recoveredBindingDigest = null,
+    initialCompletedToolCall = null,
     prompt,
     runtimeTask = null,
     signal = null,
@@ -122,6 +128,19 @@ function createDigitalEmployeeAgentExecutionService({ agentRunner, recordRuntime
     if (onTextDelta !== null && typeof onTextDelta !== "function") {
       throw new TypeError("digital employee Agent execution onTextDelta must be a function");
     }
+    if (onExecutionContinuation !== null && typeof onExecutionContinuation !== "function") {
+      throw new TypeError("digital employee Agent execution continuation recorder is invalid");
+    }
+    if (recoveredPrompt !== null) {
+      requirePlainObject(recoveredPrompt, "recoveredPrompt");
+      if (!executionContinuation || !onExecutionContinuation || recoveredBindingDigest !== continuationBinding(prompt).digest ||
+        recoveredPrompt.model !== prompt.model || recoveredPrompt.store !== false ||
+        recoveredPrompt.reasoning?.effort !== prompt.reasoning?.effort ||
+        JSON.stringify(recoveredPrompt.text?.format || null) !== JSON.stringify(prompt.text?.format || null) ||
+        recoveredPrompt.max_output_tokens !== prompt.max_output_tokens) {
+        throw new TypeError("digital employee Agent execution continuation binding changed");
+      }
+    }
     await recordProvenance({
       dependencyContext: binding.dependencyContext,
       runtimeTask,
@@ -134,12 +153,34 @@ function createDigitalEmployeeAgentExecutionService({ agentRunner, recordRuntime
       ...(onToolActivity ? { onToolActivity } : {}),
       ...(onTextDelta ? { onTextDelta } : {}),
       operationReceiptContext,
-      prompt,
+      prompt: recoveredPrompt || prompt,
+      ...(executionContinuation ? { executionContinuation } : {}),
+      ...(onExecutionContinuation ? { onExecutionContinuation } : {}),
+      ...(initialCompletedToolCall ? { initialCompletedToolCall } : {}),
       runtimeTask,
       signal,
       ...(binding.toolParameterContinuation ? { toolParameterContinuation: binding.toolParameterContinuation } : {}),
       toolExecutor: binding.executionTools,
     });
+  }
+
+  // Full private Prompt bytes stay in encrypted continuation storage. This
+  // fingerprint checks current execution contracts before restoring those bytes;
+  // changing a presentation label must not reset or replace the original loop.
+  function continuationBinding(prompt) {
+    const binding = executorByPrompt.get(prompt);
+    if (!binding) throw new TypeError("digital employee Agent execution prompt is not registered");
+    const digest = crypto.createHash("sha256").update(JSON.stringify({
+      dependencyContext: binding.dependencyContext,
+      completionContract: binding.completionContract,
+      executionBudget: binding.executionBudget,
+      tools: binding.executionTools?.toolDefinitions?.() || [],
+      model: prompt.model,
+      reasoning: prompt.reasoning,
+      outputFormat: prompt.text?.format || null,
+      maxOutputTokens: prompt.max_output_tokens,
+    })).digest("hex");
+    return Object.freeze({ digest, supported: !binding.candidateEvaluator && !binding.completionContract.requiredEvidence.length });
   }
 
   async function recordProvenance({ dependencyContext, runtimeTask = null } = {}) {
@@ -152,6 +193,7 @@ function createDigitalEmployeeAgentExecutionService({ agentRunner, recordRuntime
     contractVersion: EXECUTION_SERVICE_VERSION,
     buildPrompt,
     execute,
+    continuationBinding,
     recordProvenance,
   });
 }

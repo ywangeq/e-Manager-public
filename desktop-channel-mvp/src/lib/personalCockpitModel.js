@@ -1,5 +1,10 @@
 import { isDesktopMyTaskActiveStatus } from "../../shared/desktop-my-tasks.mjs";
 
+// Only explicit human review gates belong in the personal approval inbox.
+export function cockpitNeedsAttention(status) {
+  return ["draft", "awaiting_acceptance"].includes(status);
+}
+
 export function cockpitGoalStatus(item) {
   return item?.projection?.status || item?.status || "unavailable";
 }
@@ -19,7 +24,7 @@ export function cockpitOverview({ tasks = [], automations = [], goals = [] } = {
   const queuedTasks = tasks.filter((task) => task.status === "queued");
   const attentionAutomations = automations.filter((item) => item.state === "attention_required");
   const draftGoals = goals.filter((item) => cockpitGoalStatus(item) === "draft");
-  const goalWarnings = goals.filter((item) => ["awaiting_review", "awaiting_acceptance", "execution_completed", "rejected", "blocked", "reconcile_required", "resume_required", "failed"].includes(cockpitGoalStatus(item)));
+  const goalWarnings = goals.filter((item) => ["awaiting_review", "awaiting_acceptance", "execution_completed", "blocked", "reconcile_required", "resume_required"].includes(cockpitGoalStatus(item)));
   return {
     runningTasks, runningGoals, acceptedGoals,
     completedTasks: [...completedTasks].sort((a, b) => Date.parse(b.finishedAt || b.updatedAt || 0) - Date.parse(a.finishedAt || a.updatedAt || 0)),
@@ -34,34 +39,34 @@ export function cockpitTaskTitle(task) {
   return task.taskTitle?.trim() || "任务名称暂不可用";
 }
 
-export function cockpitAttention({ tasks = [], goals = [], automations = [] } = {}) {
+export function cockpitInteractionItems(interactions = [], now = Date.now()) {
+  return interactions.filter(item => item?.id && item.employeeId && ["parameter","confirmation"].includes(item.kind) && Date.parse(item.expiresAt) > now)
+    .map(item => ({key:`interaction:${item.kind}:${item.employeeId}:${item.id}`,kind:"interaction",item,status:"draft",title:item.displayTitle || "待处理事项",
+      action:item.kind === "confirmation" ? "审核操作" : "回答问题",reason:item.kind === "confirmation" ? "本次操作等待你的确认" : item.requestKind === "clarification" ? "员工需要你补充信息" : "请补充业务参数"}));
+}
+
+export function cockpitAttention({ tasks = [], goals = [], automations = [], interactions = [] } = {}) {
   const groupActions = {
     draft: ["确认计划", "计划草案待采纳"],
-    awaiting_review: ["查看审核", "等待审核完成"],
     awaiting_acceptance: ["验收交付", "交付物已就绪，等待你验收"],
-    execution_completed: ["查看交付", "执行结束，交付物尚未就绪"],
-    rejected: ["查看验收结果", "交付验收未通过"],
-    blocked: ["查看阻塞", "目标执行受阻"], failed: ["查看失败原因", "目标执行失败"],
-    reconcile_required: ["核对执行状态", "需要核对执行结果"], resume_required: ["查看并恢复", "目标等待恢复"],
   };
   const groupTaskIds = new Set(cockpitGroupSteps(goals).map(({step}) => step.taskId).filter(Boolean));
   return [
+    ...cockpitInteractionItems(interactions),
     ...goals.filter((goal) => groupActions[cockpitGoalStatus(goal)]).map((goal) => {
       const [action, reason] = groupActions[cockpitGoalStatus(goal)];
       return { key: `goal:${goal.goalId}`, kind: "goal", item: goal, title: goal.title || "Group 目标", action, reason };
     }),
-    ...tasks.filter((task) => !groupTaskIds.has(task.id) && task.sourceSystemId !== "group_studio" && task.taskType !== "group_step" && ["blocked", "failed", "timeout", "lost", "rejected", "waiting", "pending_file_intake", "pending_remote_resource"].includes(task.status)).map((task) => ({
+    ...tasks.filter((task) => !groupTaskIds.has(task.id) && task.sourceSystemId !== "group_studio" && task.taskType !== "group_step" && cockpitNeedsAttention(task.status)).map((task) => ({
       key: `task:${task.id}`, kind: "task", item: task, title: cockpitTaskTitle(task), action: "查看详情", reason: task.nextGate || task.statusLabel || "任务需要关注",
-    })),
-    ...automations.filter((item) => item.state === "attention_required").map((item) => ({
-      key: `automation:${item.automationId}`, kind: "automation", item, title: "定时任务需要关注", action: "查看原因与处理", reason: "查看运行记录及可执行操作",
     })),
   ];
 }
 
-export function cockpitWorkItems({ tasks = [], goals = [], automations = [] } = {}) {
+export function cockpitWorkItems({ tasks = [], goals = [], automations = [], interactions = [] } = {}) {
   const groupTaskIds = new Set(cockpitGroupSteps(goals).map(({step}) => step.taskId).filter(Boolean));
   return [
+    ...cockpitInteractionItems(interactions),
     ...automations.filter((item) => item.state === "attention_required").map((item) => ({ key: `automation:${item.automationId}`, kind: "automation", item, title: "定时任务需要关注", status: "attention_required" })),
     ...goals.map((goal) => ({ key: `goal:${goal.goalId}`, kind: "goal", item: goal, title: goal.title || "Group 目标", status: cockpitGoalStatus(goal) })),
     ...tasks.filter((task) => !groupTaskIds.has(task.id) && task.sourceSystemId !== "group_studio" && task.taskType !== "group_step").map((task) => ({ key: `task:${task.id}`, kind: "task", item: task, title: cockpitTaskTitle(task), status: task.status })),
@@ -71,9 +76,9 @@ export function cockpitWorkItems({ tasks = [], goals = [], automations = [] } = 
 export function cockpitFilterItems(items, filter, query = "") {
   const search = query.trim().toLocaleLowerCase();
   return items.filter((row) => {
-    const matches = filter === "all" || (filter === "recent" ? ["completed", "accepted"].includes(row.status)
+    const matches = filter === "all" || (filter === "recent" ? ["completed", "accepted", "canceled", "failed", "timeout", "timed_out", "lost", "rejected"].includes(row.status)
       : filter === "queued" ? ["queued", "pending"].includes(row.status)
-      : filter === "attention" ? ["attention_required", "draft", "awaiting_review", "awaiting_acceptance", "execution_completed", "blocked", "failed", "timeout", "lost", "rejected", "reconcile_required", "resume_required", "waiting", "pending_file_intake", "pending_remote_resource"].includes(row.status)
+      : filter === "attention" ? cockpitNeedsAttention(row.status)
       : isDesktopMyTaskActiveStatus(row.status) || ["planning", "starting"].includes(row.status));
     return matches && (!search || `${row.title} ${row.item.employeeName || ""}`.toLocaleLowerCase().includes(search));
   });

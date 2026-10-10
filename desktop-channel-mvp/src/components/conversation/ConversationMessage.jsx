@@ -219,7 +219,7 @@ export function ToolConfirmationCard({ confirmation, onConfirm }) {
   const presentation = toolConfirmationPresentation(confirmation, Math.max(clock, Date.now()));
   const rows = confirmationArgumentRows(confirmation.argumentSummary);
   return (
-    <section className="tool-confirmation-card is-operation" aria-label="操作确认">
+    <section data-pending-interaction-id={confirmation.id} tabIndex={-1} className="tool-confirmation-card is-operation" aria-label="操作确认">
       <div className="tool-confirmation-head">
         <span><ShieldCheck size={14} />本次写操作</span>
         <small>{confirmation.risk === "high_impact_write" ? "高影响" : "受控"}</small>

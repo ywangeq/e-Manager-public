@@ -1,3 +1,4 @@
+import { smoothTrendPath } from "../lib/smoothTrend.js";
 import OpsTaskAnalyticsPanel from "./OpsTaskAnalyticsPanel";
 import {
   Activity,
@@ -408,7 +409,7 @@ function buildDauTrend(series = []) {
       y: padding.top + (1 - value / max) * plotHeight,
     };
   });
-  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+  const linePath = smoothTrendPath(points);
   const areaPath = points.length
     ? `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${baseY.toFixed(1)} L ${points[0].x.toFixed(1)} ${baseY.toFixed(1)} Z`
     : "";
@@ -467,7 +468,7 @@ function buildSingleLineChart(series = [], valueKey = "value", { width = 520, he
       y: padding.top + (1 - value / max) * plotHeight,
     };
   });
-  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+  const linePath = smoothTrendPath(points);
   return { width, height, padding, plotHeight, max, baseY, points, linePath };
 }
 

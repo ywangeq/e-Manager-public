@@ -1,3 +1,4 @@
+import { normalizeRouteExecutionLimits } from "./agent-runtime/route-execution-limits.mjs";
 import { buildSafeProviderConnections } from "./provider-connection-service.mjs";
 
 export function createProviderConnectionHandlers({
@@ -65,6 +66,15 @@ export function createProviderConnectionHandlers({
       return sendJson(res, 404, { ok: false, error: "provider_route_not_found" });
     }
     const input = await readJsonBody(req, 8 * 1024);
+    if (input.executionLimits !== undefined) {
+      if (Object.keys(input).length !== 1) return sendJson(res, 422, { ok: false, error: "route_execution_limits_invalid" });
+      let limits;
+      try { limits = normalizeRouteExecutionLimits(input.executionLimits, safeConnections().find(item => item.id === routeId)); }
+      catch { return sendJson(res, 422, { ok: false, error: "route_execution_limits_invalid", message: "请填写有效的单次时限、重试次数和任务总预算；总预算不能小于单次时限。" }); }
+      const saved = governanceStore?.setRouteExecutionLimits?.(routeId, limits, session);
+      if (!saved?.ok) return storeUnavailable(res);
+      return sendJson(res, 200, { ok: true, contractVersion: "provider-route-governance-update.v1", connection: safeConnections().find(item => item.id === routeId), message: "执行限制已保存；对新任务生效，已有任务保留原总预算。" });
+    }
     if (typeof input.enabled !== "boolean") {
       return sendJson(res, 422, { ok: false, error: "provider_route_enabled_required", message: "enabled 必须是布尔值。" });
     }

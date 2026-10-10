@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createFeishuCalendarCache} from '../electron/feishu-calendar-cache.mjs';
+import {createFeishuCalendarProjection} from '../electron/feishu-calendar-projection.mjs';
+import {createDesktopFeishuCliConnection} from '../electron/desktop-feishu-cli-connection.mjs';
+import {FEISHU_CALENDAR_READ_DESCRIPTOR as contract,validFeishuCalendarUrl} from '../shared/feishu-calendar-read-contract.mjs';
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'calendar-cache-'));
+const secret=crypto.randomBytes(32);
+let available=true;
+const encryption={isAvailable:()=>available,encrypt:plain=>{const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',secret,iv);return Buffer.concat([iv,cipher.update(plain),cipher.final(),cipher.getAuthTag()]).toString('base64');},decrypt:value=>{const data=Buffer.from(value,'base64'),decipher=crypto.createDecipheriv('aes-256-gcm',secret,data.subarray(0,12));decipher.setAuthTag(data.subarray(-16));return Buffer.concat([decipher.update(data.subarray(12,-16)),decipher.final()]).toString();}};
+const scope={center:'https://synthetic.invalid',actorKey:'synthetic-actor',appId:'synthetic-app',openId:'synthetic-open'};
+const context={...scope,actorVersion:1,associationGeneration:1};
+const claim={toolId:contract.toolId,operationId:contract.operationId,input:{start:'2026-10-05T00:00:00Z',end:'2026-10-12T00:00:00Z'}};
+const event={eventRef:'synthetic-ref',title:'synthetic private title',start:'2026-10-09T01:00:00Z',end:'2026-10-09T02:00:00Z',calendarUrl:'https://applink.feishu.cn/client/calendar/event/detail?key=synthetic',meetingUrl:'https://vc.feishu.cn/j/synthetic'};
+try {
+ const cache=()=>createFeishuCalendarCache({directory:root,encryption});
+ const projection=createFeishuCalendarProjection({persist:(_,snapshots)=>cache().write(scope,snapshots)});projection.setContext(context);
+ assert.equal(projection.accept(context,{claim,result:{events:[event]}}),true);
+ const files=fs.readdirSync(root,{recursive:true}).filter(name=>name.endsWith('.json'));
+ assert.equal(files.length,1);
+ const disk=fs.readFileSync(path.join(root,files[0]),'utf8');
+ for(const value of [...Object.values(scope),event.title,event.calendarUrl,event.meetingUrl])assert.equal(disk.includes(value),false);
+ assert.equal(fs.statSync(path.join(root,files[0])).mode&0o777,0o600);
+ const restarted=createFeishuCalendarProjection();const next={...context,actorVersion:9,associationGeneration:20};restarted.setContext(next);
+ assert.equal(restarted.restore(next,cache().read(scope)),true,'restore is independent of scheduler enablement and process generation');
+ assert.equal(restarted.read(next).cached,true);assert.deepEqual(restarted.read(next).snapshots[0].events,[event]);
+ restarted.failed(next,claim);assert.equal(restarted.read(next).snapshots[0].events.length,1,'offline retains historical display');
+ assert.equal(restarted.restore(next,cache().read(scope)),false,'old disk cannot overwrite a newer live projection');
+ for(const field of ['actorKey','center','appId','openId'])assert.equal(cache().read({...scope,[field]:'another'}),null,`${field} isolated`);
+ projection.accept(context,{claim,result:{events:[]}});assert.equal(cache().read(scope)[0].events.length,0,'empty authoritative read persists cancellations');
+ available=false;assert.equal(cache().read(scope),null);assert.equal(cache().write(scope,[]),false);available=true;
+ fs.writeFileSync(path.join(root,files[0]),disk.replace(/ciphertext":"./,'ciphertext":"!'));assert.equal(cache().read(scope),null,'corrupt encryption fails closed');
+ cache().write(scope,[{...claim.input,fetchedAt:new Date().toISOString(),events:[event]}]);cache().removeActor(scope);assert.equal(cache().read(scope),null);
+ for(const bad of ['javascript:alert(1)','https://vc.feishu.cn.evil.test/j/a','https://user@vc.feishu.cn/j/a','https://vc.feishu.cn:444/j/a','https://vc.feishu.cn\\@evil.test'])assert.equal(validFeishuCalendarUrl(bad,'meetingUrl'),false);
+ assert.throws(()=>contract.normalizeResult({events:[{...event,meetingUrl:'https://evil.test'}]}),/link_invalid/);
+ assert.equal(contract.normalizeResult({events:[event]}).events[0].calendarUrl,event.calendarUrl);
+ let actor={key:scope.actorKey,version:1},openId=scope.openId,intent=true,finish,gate=null;
+ const connection=createDesktopFeishuCliConnection({actorContext:()=>actor,isExpectedActor:(key,version)=>actor.key===key&&actor.version===version,intentStore:{has:()=>intent,set:(_,enabled)=>{intent=enabled;}},readActor:async()=>null,
+   onDisconnect:()=>cache().removeActor(scope),run:async args=>{assert.deepEqual(args,['auth','status','--json']);if(gate)await gate;return {appId:scope.appId,identities:{user:{openId}}};}});
+ const binding=await connection.cacheBinding();assert.equal(binding.openId,scope.openId);assert.equal((await connection.status()).state,'verification_required','cache metadata never authenticates Tools');
+ const generation=binding.generation;openId='another-open';assert.ok((await connection.cacheBinding()).generation>generation,'CLI switch fences old projection');
+ gate=new Promise(resolve=>finish=resolve);const pending=connection.cacheBinding();await new Promise(resolve=>setImmediate(resolve));actor={...actor,version:2};finish();assert.equal(await pending,null,'late metadata cannot cross actor generation');gate=null;
+ await connection.disconnect();assert.equal(await connection.cacheBinding(),null,'disconnect cannot revive cached display');
+ console.log('Encrypted calendar restart/paused/offline/cancellation, account isolation, disconnect/races, no-auth display and official links passed');
+} finally {fs.rmSync(root,{recursive:true,force:true});}

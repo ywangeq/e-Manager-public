@@ -1,3 +1,4 @@
+import RouteExecutionLimits from "./RouteExecutionLimits.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { Clipboard, Edit3, Import, KeyRound, Plus, Power, RotateCcw, Trash2 } from "lucide-react";
 import { statusClass } from "../lib/consoleCatalog";
@@ -310,6 +311,7 @@ export default function SystemManagement({ session }) {
           onSecretDraftChange={(credentialId, value) => setSecretDrafts((current) => ({ ...current, [credentialId]: value }))}
           onStartEdit={startEdit}
           onToggle={handleToggle}
+          onExecutionSaved={connection => updateConnection(connection.id, () => connection)}
         />
       </section>
     </section>
@@ -338,6 +340,7 @@ function ProviderConnectionTable({
   onSecretDraftChange,
   onStartEdit,
   onToggle,
+  onExecutionSaved,
   providerFilter,
   providerOptions,
   secretDrafts,
@@ -413,6 +416,7 @@ function ProviderConnectionTable({
                     <Clipboard size={14} />
                   </button>
                 </span>
+                <RouteExecutionLimits connection={connection} onSaved={onExecutionSaved} />
               </td>
               <td>
                 <span className="key-provider-cell">

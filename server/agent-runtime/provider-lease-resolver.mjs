@@ -67,6 +67,7 @@ function resolveManagedProviderLease({
     timeoutPolicy: providerTimeoutPolicyForRoute(providerRoute),
     timeoutMs: positiveNumber(providerRoute.timeoutMs),
     retryCount: nonNegativeNumber(providerRoute.retryCount),
+    toolExecutionTimeoutMs: positiveNumber(providerRoute.toolExecutionTimeoutMs) || 300_000,
     fallbackRouteId: first(providerRoute.fallbackRouteId),
     ...(hasExplicitBinding ? {
       model: first(providerBinding.model),

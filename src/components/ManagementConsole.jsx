@@ -32,7 +32,7 @@ import {
 import { attachCardSpotlight } from "../lib/cardSpotlight";
 import { badcasesForEntity, displaySkillVersion, statusClass } from "../lib/consoleCatalog";
 import { fetchControlPlaneState, postQualityReviewAction } from "../lib/controlPlane";
-import { employeeChannels, digitalEmployeeFacets } from "../lib/digitalEmployeeOverview";
+import { employeeChannels, digitalEmployeeFacets, digitalEmployeeLevelLabel } from "../lib/digitalEmployeeOverview";
 import { applyDigitalEmployeeRuntimeConfig } from "../lib/digitalEmployeeModelBinding";
 import { applyDigitalEmployeeLifecycle } from "../lib/digitalEmployeeLifecycle";
 import {
@@ -488,7 +488,7 @@ export default function ManagementConsole({ session, onLogout }) {
         employee.status,
         employee.version,
         employee.level,
-        employee.level === "系统级" ? "企业级" : "业务级",
+        digitalEmployeeLevelLabel(employee),
         employee.ownerDepartmentId,
         employee.ownerUserId,
         employee.permissionScope,

@@ -1,14 +1,20 @@
 mod seatbelt_policy;
+mod head_tail_buffer;
+mod process_group;
+use head_tail_buffer::HeadTailBuffer;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, Read};
+use std::sync::{Arc, Mutex};
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+const EXEC_CONTRACT_VERSION: &str = "managed-sandbox-helper.internal.v2";
+const MAX_OUTPUT_BYTES: usize = 32 * 1024;
 const CONTRACT_VERSION: &str = "managed-sandbox-helper.internal.v1";
 #[cfg(target_os = "linux")]
 const BWRAP: &str = "/usr/bin/bwrap";
@@ -25,6 +31,8 @@ struct InternalExecutionRequest {
     command: Vec<String>,
     timeout_ms: u64,
     workspace_root: String,
+    #[serde(default)]
+    network_access: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -32,12 +40,22 @@ struct InternalExecutionRequest {
 struct SafeExecutionResult {
     contract_version: &'static str,
     status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stdout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stderr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exit_code: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output_truncated: Option<bool>,
 }
 
 struct ValidatedRequest {
     command: Vec<String>,
     timeout: Duration,
     workspace_root: PathBuf,
+    private_output: bool,
+    network_access: bool,
 }
 
 fn main() {
@@ -55,6 +73,10 @@ fn safe_result(status: &'static str) -> SafeExecutionResult {
     SafeExecutionResult {
         contract_version: CONTRACT_VERSION,
         status,
+        stdout: None,
+        stderr: None,
+        exit_code: None,
+        output_truncated: None,
     }
 }
 
@@ -71,7 +93,10 @@ fn read_request() -> Result<InternalExecutionRequest, &'static str> {
 }
 
 fn validate_request(request: InternalExecutionRequest) -> Result<ValidatedRequest, &'static str> {
-    if request.contract_version != CONTRACT_VERSION
+    let private_output = request.contract_version == EXEC_CONTRACT_VERSION;
+    if (!private_output && request.contract_version != CONTRACT_VERSION)
+        || (!private_output && request.network_access.is_some())
+        || (private_output && request.network_access.is_none())
         || request.command.is_empty()
         || request.command.len() > MAX_ARGUMENTS
         || request.command.iter().any(|argument| argument.is_empty() || argument.len() > 16_384)
@@ -89,6 +114,8 @@ fn validate_request(request: InternalExecutionRequest) -> Result<ValidatedReques
         command: request.command,
         timeout: Duration::from_millis(request.timeout_ms),
         workspace_root,
+        private_output,
+        network_access: request.network_access.unwrap_or(false),
     })
 }
 
@@ -100,17 +127,56 @@ fn run_request(request: ValidatedRequest) -> Result<SafeExecutionResult, &'stati
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     return Err("unavailable");
 
+    let stdout = capture_output(child.stdout.take());
+    let stderr = capture_output(child.stderr.take());
     let deadline = Instant::now() + request.timeout;
-    loop {
+    let (status, exit_code) = loop {
         if let Some(exit) = child.try_wait().map_err(|_| "failed")? {
-            return Ok(safe_result(if exit.success() { "completed" } else { "failed" }));
+            // A descendant must not outlive a completed command and keep its pipes open.
+            terminate_process_tree(&mut child);
+            break (if exit.success() { "completed" } else { "failed" }, exit.code());
         }
         if Instant::now() >= deadline {
             terminate_process_tree(&mut child);
-            return Ok(safe_result("timed_out"));
+            break ("timed_out", None);
         }
         thread::sleep(Duration::from_millis(10));
+    };
+    let mut result = safe_result(status);
+    if request.private_output {
+        result.contract_version = EXEC_CONTRACT_VERSION;
+        let (out, out_truncated) = output_snapshot(stdout);
+        let (err, err_truncated) = output_snapshot(stderr);
+        result.stdout = Some(out);
+        result.stderr = Some(err);
+        result.exit_code = exit_code;
+        result.output_truncated = Some(out_truncated || err_truncated);
     }
+    Ok(result)
+}
+
+type CapturedOutput = Arc<Mutex<(HeadTailBuffer<MAX_OUTPUT_BYTES>, bool)>>;
+fn capture_output<T: Read + Send + 'static>(pipe: Option<T>) -> CapturedOutput {
+    let captured = Arc::new(Mutex::new((HeadTailBuffer::default(), pipe.is_none())));
+    if let Some(mut pipe) = pipe {
+        let shared = Arc::clone(&captured);
+        thread::spawn(move || {
+            let mut chunk = [0_u8; 4096];
+            while let Ok(count) = pipe.read(&mut chunk) {
+                if count == 0 { break; }
+                let mut output = shared.lock().unwrap();
+                output.0.push_chunk(&chunk[..count]);
+            }
+            shared.lock().unwrap().1 = true;
+        });
+    }
+    captured
+}
+fn output_snapshot(output: CapturedOutput) -> (String, bool) {
+    let deadline = Instant::now() + Duration::from_millis(100);
+    while !output.lock().unwrap().1 && Instant::now() < deadline { thread::sleep(Duration::from_millis(1)); }
+    let output = output.lock().unwrap();
+    (String::from_utf8_lossy(&output.0.to_bytes_with_omission_marker()).into_owned(), output.0.omitted_bytes() > 0 || !output.1)
 }
 
 #[cfg(target_os = "macos")]
@@ -118,9 +184,10 @@ fn spawn_macos_sandboxed(request: &ValidatedRequest) -> Result<Child, &'static s
     if !Path::new(SANDBOX_EXEC).is_file() {
         return Err("unavailable");
     }
-    let policy = seatbelt_policy::no_egress_workspace_policy(&seatbelt_policy::WorkspacePolicy {
-        workspace_root: request.workspace_root.clone(),
-    })?;
+    let workspace_policy = seatbelt_policy::WorkspacePolicy { workspace_root: request.workspace_root.clone() };
+    let policy = if request.private_output {
+        seatbelt_policy::isolated_exec_policy(&workspace_policy, request.network_access)?
+    } else { seatbelt_policy::no_egress_workspace_policy(&workspace_policy)? };
     let task_tmpdir = request.workspace_root.join(".managed-sandbox-tmp");
     fs::create_dir_all(&task_tmpdir).map_err(|_| "failed")?;
     let cpu_seconds = request.timeout.as_secs().saturating_add(1).max(1);
@@ -136,8 +203,8 @@ fn spawn_macos_sandboxed(request: &ValidatedRequest) -> Result<Child, &'static s
         .env("TMPDIR", task_tmpdir)
         .env("PATH", TOOLCHAIN_PATH)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(if request.private_output { Stdio::piped() } else { Stdio::null() })
+        .stderr(if request.private_output { Stdio::piped() } else { Stdio::null() });
     unsafe {
         command.pre_exec(move || {
             if libc::setpgid(0, 0) == -1 {
@@ -154,6 +221,8 @@ fn spawn_macos_sandboxed(request: &ValidatedRequest) -> Result<Child, &'static s
 
 #[cfg(target_os = "linux")]
 fn spawn_linux_sandboxed(request: &ValidatedRequest) -> Result<Child, &'static str> {
+    // Network-enabled Linux needs its own verified networking policy.
+    if request.network_access { return Err("unavailable"); }
     if !Path::new(BWRAP).is_file() {
         return Err("unavailable");
     }
@@ -215,8 +284,8 @@ fn spawn_linux_sandboxed(request: &ValidatedRequest) -> Result<Child, &'static s
         .arg("--")
         .args(&request.command)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(if request.private_output { Stdio::piped() } else { Stdio::null() })
+        .stderr(if request.private_output { Stdio::piped() } else { Stdio::null() });
     unsafe {
         command.pre_exec(move || {
             if libc::setpgid(0, 0) == -1 {
@@ -256,16 +325,11 @@ fn set_limit(resource: libc::__rlimit_resource_t, current: u64, maximum: u64) ->
 }
 
 fn terminate_process_tree(child: &mut Child) {
-    let pid = child.id() as libc::pid_t;
-    unsafe {
-        libc::killpg(pid, libc::SIGTERM);
-    }
+    let pid = child.id();
+    let _ = process_group::terminate_process_group(pid);
     thread::sleep(Duration::from_millis(100));
-    if child.try_wait().ok().flatten().is_none() {
-        unsafe {
-            libc::killpg(pid, libc::SIGKILL);
-        }
-    }
+    // The root may have exited while descendants still hold stdout/stderr.
+    let _ = process_group::kill_process_group(pid);
     let _ = child.kill();
     let _ = child.wait();
 }

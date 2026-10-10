@@ -5,9 +5,11 @@ import {
 } from "./digital-employee-entitlement.mjs";
 import { assembleDigitalEmployeeDependencyContext } from "./agent-runtime/dependency-context.mjs";
 import { projectDesktopCharacter } from "./digital-employee-character-service.mjs";
+import { canonicalEnterpriseToolId } from "../src/lib/enterpriseTools.js";
 
 export function createDigitalEmployeeAccessHandlers({
   getDigitalEmployees,
+  getEnterpriseTools = () => [],
   getBusinessSkills,
   getConversationHistoryBootstrap,
   getCredentialBrokerBootstrap = () => null,
@@ -392,7 +394,7 @@ export function createDigitalEmployeeAccessHandlers({
       ? await skillHarnessRunner.materialInputContracts(dependencyContext.skillScope.callableSkillIds)
       : [];
     const character = typeof getDesktopCharacter === "function" ? getDesktopCharacter(employee.id) : null;
-    return projectDesktopEmployeeFields(employee, access, dependencyContext, materialInputContracts, character);
+    return projectDesktopEmployeeFields(employee, access, dependencyContext, materialInputContracts, character, getEnterpriseTools());
   }
 
   function currentBusinessSkills() {
@@ -417,12 +419,14 @@ export function createDigitalEmployeeAccessHandlers({
   }
 }
 
-function projectDesktopEmployeeFields(employee, access, dependencyContext, materialInputContracts, character) {
+function projectDesktopEmployeeFields(employee, access, dependencyContext, materialInputContracts, character, toolCatalog) {
   return {
     id: cleanId(employee.id),
     name: cleanText(employee.name || employee.title || employee.id),
     title: cleanText(employee.title),
     level: cleanText(employee.level),
+    serviceScope: ["personal", "department", "enterprise"].includes(employee.serviceScope) ? employee.serviceScope : "",
+    permissionScope: cleanText(employee.permissionScope),
     status: cleanText(employee.status),
     version: cleanText(employee.version),
     departmentId: cleanText(employee.departmentId),
@@ -435,7 +439,7 @@ function projectDesktopEmployeeFields(employee, access, dependencyContext, mater
     permissionSummary: cleanText(employee.permissionSummary),
     character,
     runtimeEvidence: safeRuntimeEvidence(employee.runtimeEvidence),
-    tools: safeDesktopTools(employee.toolBindings || employee.tools),
+    tools: safeDesktopTools(employee.toolBindings || employee.tools, toolCatalog),
     runtimeSkills: {
       contractVersion: "desktop-callable-skill-materials.v1",
       callableSkillIds: dependencyContext?.skillScope?.callableSkillIds || [],
@@ -445,15 +449,18 @@ function projectDesktopEmployeeFields(employee, access, dependencyContext, mater
   };
 }
 
-function safeDesktopTools(tools = []) {
+function safeDesktopTools(tools = [], toolCatalog = []) {
   if (!Array.isArray(tools)) return [];
   return tools
     .filter((tool) => tool?.enabled !== false)
     .map((tool) => {
       const credentialBoundary = cleanText(tool?.credentialBoundary);
       const identityModes = cleanList(tool?.identityModes).map((mode) => mode.toLowerCase());
-      const declaredCredentialMode = cleanId(tool?.credentialMode).replaceAll("-", "_");
-      const supportedCredentialModes = new Set(["current_user_bearer", "center_current_user_lease", "device_session_refresh"]);
+      const toolId = canonicalEnterpriseToolId(tool?.toolId || tool?.id);
+      const catalogTool = toolCatalog.find(item => item.id === toolId);
+      // Bindings own enablement and explicit overrides; the catalog owns default connection metadata.
+      const declaredCredentialMode = cleanId(tool?.credentialMode || catalogTool?.credentialMode).replaceAll("-", "_");
+      const supportedCredentialModes = new Set(["current_user_bearer", "center_current_user_lease", "device_session_refresh", "device_local_cli", "employee_app_lease"]);
       const structuredCurrentUserBearer = declaredCredentialMode === "current_user_bearer";
       // Compatibility for bindings created before identityModes was projected to Desktop.
       const legacyCurrentUserBearer = !declaredCredentialMode && (
@@ -463,9 +470,10 @@ function safeDesktopTools(tools = []) {
       const currentUserBearer = structuredCurrentUserBearer || legacyCurrentUserBearer;
       const credentialMode = supportedCredentialModes.has(declaredCredentialMode)
         ? declaredCredentialMode
-        : currentUserBearer ? "current_user_bearer" : "";
+        : declaredCredentialMode ? "unsupported" : currentUserBearer ? "current_user_bearer" : "";
       return {
-        id: cleanId(tool?.id || tool?.toolId),
+        id: cleanId(toolId),
+        connectionId: cleanId(catalogTool?.connectionId || toolId),
         name: cleanText(tool?.name || tool?.displayName || tool?.id),
         credentialMode,
         temporaryCredentialRequired: credentialMode === "current_user_bearer",

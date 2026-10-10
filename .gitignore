@@ -14,3 +14,5 @@ desktop-channel-mvp/release/
 desktop-channel-mvp/native/**/target/
 
 __pycache__/
+
+desktop-channel-mvp/electron/local-calendar-runtime.bundle.mjs

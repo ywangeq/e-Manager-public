@@ -1,6 +1,5 @@
-import { cockpitGoalStatus } from "./personalCockpitModel.js";
+import { cockpitGoalStatus, cockpitNeedsAttention } from "./personalCockpitModel.js";
 import { isDesktopMyTaskActiveStatus } from "../../shared/desktop-my-tasks.mjs";
-import { cockpitStatusTone } from "./cockpitStatusTone.js";
 
 // Presentation only. Runtime, Group projections and automation sources retain authority.
 export const activityStates = {
@@ -21,15 +20,13 @@ export function cockpitSentinelActivity({ authenticated, taskPhase, goalPhase, a
   if (phases.includes("error")) return "unavailable";
   if (phases.some((phase) => phase !== "ready")) return "loading";
   const statuses = [...tasks.map((task) => task.status), ...goals.map(cockpitGoalStatus),
-    ...goals.filter((goal) => !["completed", "accepted", "canceled", "failed", "rejected"].includes(cockpitGoalStatus(goal)))
+    ...goals.filter((goal) => !["completed", "accepted", "canceled", "failed", "rejected", "timeout", "timed_out", "lost"].includes(cockpitGoalStatus(goal)))
       .flatMap((goal) => (goal.projection?.steps || []).map((step) => step.status))];
   if (statuses.includes("blocked")) return "blocked";
-  if (statuses.some((status) => cockpitStatusTone(status) === "attention") || automations.some((item) => item.state === "attention_required")) return "attention";
+  if (statuses.some((status) => cockpitNeedsAttention(status))) return "attention";
   if (statuses.some((status) => isDesktopMyTaskActiveStatus(status) || ["planning", "starting"].includes(status))) return "working";
   if (statuses.some((status) => ["queued", "pending"].includes(status))) return "queued";
-  // Terminal failures remain visible, but must not conceal current work or its queue.
-  if (statuses.some((status) => ["failed", "timeout", "timed_out", "lost", "rejected"].includes(status))) return "blocked";
-  if (statuses.some((status) => !["completed", "accepted", "canceled"].includes(status))) return "unavailable";
+  if (statuses.some((status) => !["completed", "accepted", "canceled", "failed", "timeout", "timed_out", "lost", "rejected", "awaiting_review", "execution_completed", "reconcile_required", "resume_required"].includes(status))) return "unavailable";
   return "idle";
 }
 

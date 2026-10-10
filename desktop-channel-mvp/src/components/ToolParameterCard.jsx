@@ -19,6 +19,7 @@ export function ToolParameterCard({ card, onSubmit, onDraftChange, compact = fal
   const [localValues, setValues] = useState(() => structuredClone(card.initialArguments || {}));
   const values = onDraftChange ? card.draftArguments || card.initialArguments || {} : localValues;
   const [errors, setErrors] = useState({});
+  const clarification = card.requestKind === "clarification";
   const submitted = card.status === "submitted";
   const superseded = card.status === "superseded";
   const submitting = card.status === "submitting";
@@ -67,23 +68,23 @@ export function ToolParameterCard({ card, onSubmit, onDraftChange, compact = fal
   }
 
   return (
-    <section className={`tool-parameter-card ${compact ? "is-compact" : ""} ${expanded ? "is-expanded" : ""}`} aria-label={`配置 ${card.title}`}>
+    <section data-pending-interaction-id={card.id} tabIndex={-1} className={`tool-parameter-card ${compact ? "is-compact" : ""} ${expanded ? "is-expanded" : ""}`} aria-label={`${clarification ? "回答" : "配置"} ${card.title}`}>
       <button type="button" className="tool-parameter-summary" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>
         <span className="tool-parameter-icon"><Wrench size={15} weight="fill" /></span>
         <span className="tool-parameter-title">
-          <small>{compact ? "需要你确认" : "Agent 已选择操作"}</small>
+          <small>{clarification ? "需要你补充信息" : compact ? "需要你确认" : "Agent 已选择操作"}</small>
           <strong>{card.title || card.operationId}</strong>
-          <span>{card.method ? `${card.method} · ` : ""}{managedReferences.length ? `${managedReferences.length} 个已选对象 · ` : ""}{card.fieldCount} 个可调参数</span>
+          <span>{clarification ? `${card.fieldCount} 个问题` : <>{card.method ? `${card.method} · ` : ""}{managedReferences.length ? `${managedReferences.length} 个已选对象 · ` : ""}{card.fieldCount} 个可调参数</>}</span>
         </span>
         <span className={`tool-parameter-status is-${submitted ? "submitted" : superseded ? "superseded" : expired ? "expired" : "draft"}`}>
-          {submitted ? <><Check size={12} />已提交</> : superseded ? "已更新" : expired ? "已过期" : submitting ? "正在提交" : uncertain ? "待同步" : compact ? "等待你确认" : fields.length ? "待填写" : "待确认"}
+          {submitted ? <><Check size={12} />已提交</> : superseded ? "已更新" : expired ? "已过期" : submitting ? "正在提交" : uncertain ? "待同步" : clarification ? "等待你回答" : compact ? "等待你确认" : fields.length ? "待填写" : "待确认"}
         </span>
         <CaretDown className="tool-parameter-caret" size={14} />
       </button>
       {expanded ? (
         <div className="tool-parameter-body">
           {!compact && card.description ? <p className="tool-parameter-description">{card.description}</p> : null}
-          {compact ? <details className="tool-parameter-explanation"><summary>说明与影响范围</summary><p>{card.writebackBoundary}</p><p>提交参数后仍按当前用户权限执行；高影响操作另行确认。</p></details> : null}
+          {compact ? <details className="tool-parameter-explanation"><summary>说明与影响范围</summary><p>{card.writebackBoundary}</p><p>{clarification ? "回答用于补充当前任务信息；需要确认的操作会另行询问。" : "提交参数后仍按当前用户权限执行；高影响操作另行确认。"}</p></details> : null}
           {managedReferences.length ? (
             <section className="tool-parameter-references" aria-label="Agent 已选对象">
               <span className="tool-parameter-reference-heading">Agent 已从业务系统选定</span>
@@ -98,7 +99,7 @@ export function ToolParameterCard({ card, onSubmit, onDraftChange, compact = fal
           ) : null}
           {groups.map(([group, groupFields]) => (
             <fieldset className="tool-parameter-group" key={group} disabled={inactive}>
-              <legend>{GROUP_LABELS[group] || group}</legend>
+              <legend>{clarification ? "问题" : GROUP_LABELS[group] || group}</legend>
               {groupFields.map((field) => (
                 <ParameterField
                   error={errors[field.path.join(".")]}
@@ -112,20 +113,20 @@ export function ToolParameterCard({ card, onSubmit, onDraftChange, compact = fal
           ))}
           {optionalFields.length ? (
             <button type="button" className="tool-parameter-optional" onClick={() => setShowOptional((current) => !current)}>
-              <SlidersHorizontal size={14} />{showOptional ? "收起可选参数" : `更多参数 · ${optionalFields.length}`}
+              <SlidersHorizontal size={14} />{showOptional ? (clarification ? "收起可选问题" : "收起可选参数") : `${clarification ? "更多问题" : "更多参数"} · ${optionalFields.length}`}
             </button>
           ) : null}
           {Object.keys(errors).length ? <p className="tool-parameter-form-error">还有 {Object.keys(errors).length} 项需要检查</p> : null}
-          {compact ? <div className="tool-parameter-footnote">{footer}<span>{expired ? "参数卡已过期，请让员工更新后再确认。" : `有效至 ${new Date(card.expiresAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`}</span></div> : null}
+          {compact ? <div className="tool-parameter-footnote">{footer}<span>{expired ? (clarification ? "问题已过期，请让员工更新后再回答。" : "参数卡已过期，请让员工更新后再确认。") : `有效至 ${new Date(card.expiresAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`}</span></div> : null}
           <div className="tool-parameter-actions">
             {compact && onDefer ? <button type="button" className="tool-parameter-reset" disabled={submitting || busy} onClick={onDefer}>稍后处理</button> : <button type="button" className="tool-parameter-reset" disabled={inactive} onClick={() => { const next = structuredClone(card.initialArguments || {}); if (onDraftChange) onDraftChange(card, next); else setValues(next); setErrors({}); }}>重置</button>}
             <button type="button" className="tool-parameter-submit" disabled={inactive} onClick={submit}>
-              {submitted ? "参数已提交" : superseded ? "请使用新参数卡" : expired ? "参数卡已过期" : submitting ? "正在提交" : uncertain ? "提交状态待同步" : compact ? "确认参数" : "使用这些参数"}
+              {submitted ? (clarification ? "回答已提交" : "参数已提交") : superseded ? (clarification ? "请回答新问题" : "请使用新参数卡") : expired ? (clarification ? "问题已过期" : "参数卡已过期") : submitting ? "正在提交" : uncertain ? "提交状态待同步" : clarification ? "提交回答" : compact ? "确认参数" : "使用这些参数"}
             </button>
           </div>
           {!compact ? <small className="tool-parameter-boundary">
             {card.writebackBoundary ? `本次影响范围：${card.writebackBoundary}。` : ""}
-            提交后仍按当前用户权限与 Tool 门禁执行；高影响写操作会再次确认。
+            {clarification ? "回答用于补充当前任务信息；需要确认的操作会另行询问。" : "提交后仍按当前用户权限与 Tool 门禁执行；高影响写操作会再次确认。"}
           </small> : null}
         </div>
       ) : null}

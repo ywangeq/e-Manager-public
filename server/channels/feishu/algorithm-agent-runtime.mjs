@@ -355,6 +355,7 @@ function createFeishuEmployeeAgentRuntime({
         repeatThreshold: effectiveLoopPolicy.repeatedToolThreshold,
         runtimeTask,
         signal,
+        timeoutMs: resolveProviderLease(employee)?.toolExecutionTimeoutMs || 300_000,
         toolCall: approvedToolCall,
         toolExecutor,
       });

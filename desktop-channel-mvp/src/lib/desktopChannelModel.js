@@ -152,6 +152,21 @@ export function mergeRecoveredToolParameterCards(messages = [], cards = [], { no
   return recoveredMessages.length ? sortConversationMessages([...current, ...recoveredMessages]) : current;
 }
 
+export function mergeRecoveredToolConfirmations(messages = [], confirmations = [], {now = Date.now()} = {}) {
+  const pending = confirmations.filter(card => card?.contractVersion === "tool-call-confirmation.v1" && card.status === "pending" && Date.parse(card.expiresAt) > now);
+  const byId = new Map(pending.map(card => [card.id,card]));
+  const seen = new Set();
+  const current = messages.map(message => ({...message,...(Array.isArray(message.toolConfirmations) ? {
+    toolConfirmations:message.toolConfirmations.map(card => {
+      seen.add(card.id);
+      return byId.get(card.id) || (card.status === "pending" ? {...card,status:"superseded"} : card);
+    }),
+  } : {})}));
+  const recovered = pending.filter(card => !seen.has(card.id)).map(card => ({id:`recovered-confirmation-${card.id}`,role:"assistant",content:"",localNotice:true,
+    cardRecovery:true,status:"done",createdAt:card.issuedAt,toolConfirmations:[card]}));
+  return sortConversationMessages([...current,...recovered]);
+}
+
 export function employeeRuntimeState(employee = {}) {
   if (employee.access?.callable === false) return { label: "未上线", tone: "muted" };
   const evidence = employee.runtimeEvidence || {};

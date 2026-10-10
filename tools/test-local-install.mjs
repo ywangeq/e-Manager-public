@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { initializeLocalInstallation } from "./local-install.mjs";
 import { verifyLocalPassword, assertLocalBinding } from "../server/auth/local-account.mjs";
-import { digitalEmployees, basicSkills, businessSkills, preReviewWorkers, enterpriseTools } from "../src/data/catalog.js";
+import { digitalEmployees, basicSkills, businessSkills, preReviewWorkers, enterpriseTools, enterpriseToolBuiltinMigrations } from "../src/data/catalog.js";
 import { DIGITAL_EMPLOYEE_CHARACTER_REGISTRY } from "../src/data/digitalEmployeeCharacters.js";
 import { localCenterUrl } from "../desktop-channel-mvp/shared/local-center.mjs";
 
@@ -47,7 +47,7 @@ test("Group Studio local Center configuration cannot select enterprise or LAN se
 });
 
 test("distribution starts without business employees, Skills, workers, Tools or characters", () => {
-  for (const collection of [digitalEmployees, basicSkills, businessSkills, preReviewWorkers, enterpriseTools]) assert.deepEqual(collection, []);
+  for (const collection of [digitalEmployees, basicSkills, businessSkills, preReviewWorkers, enterpriseTools, enterpriseToolBuiltinMigrations]) assert.deepEqual(collection, []);
   assert.deepEqual(DIGITAL_EMPLOYEE_CHARACTER_REGISTRY, {});
 });
 

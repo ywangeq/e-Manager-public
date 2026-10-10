@@ -1,13 +1,17 @@
+import { providerTimeoutPolicyForRoute } from "./agent-runtime/provider-timeout-policy.mjs";
 export function projectProviderRoutes(routes = [], governanceState = {}) {
   return routes.map((route) => {
     const override = governanceState.routeOverrides?.[route.id];
-    if (typeof override?.enabled !== "boolean") return { ...route, enabled: route.enabled !== false };
+    const enabled = typeof override?.enabled === "boolean" ? override.enabled : route.enabled !== false;
     return {
       ...route,
-      enabled: override.enabled,
-      health: override.enabled ? route.health : "disabled",
-      governanceUpdatedAt: override.updatedAt || "",
-      governanceUpdatedBy: override.updatedBy || "",
+      ...(override?.timeoutPolicy ? { timeoutPolicy: providerTimeoutPolicyForRoute({ timeoutPolicy: override.timeoutPolicy }) } : {}),
+      ...(Number.isSafeInteger(override?.toolExecutionTimeoutMs) ? { toolExecutionTimeoutMs: override.toolExecutionTimeoutMs } : {}),
+      ...(Number.isSafeInteger(override?.retryCount) ? { retryCount: override.retryCount } : {}),
+      enabled,
+      health: enabled ? route.health : "disabled",
+      governanceUpdatedAt: override?.updatedAt || "",
+      governanceUpdatedBy: override?.updatedBy || "",
     };
   });
 }
@@ -35,6 +39,9 @@ export function buildSafeProviderConnections({ credentials = [], governanceState
     const workerPool = workerPoolById.get(route.workerPoolId) || null;
     return {
       ...route,
+      timeoutPolicy: providerTimeoutPolicyForRoute(route),
+      toolExecutionTimeoutMs: route.toolExecutionTimeoutMs || 300_000,
+      retryCount: route.retryCount ?? 2,
       credentialId: credential.id || route.credentialId || "",
       credentialName: credential.name || "未绑定凭证",
       credentialType: credential.credentialType || "",
